@@ -3,19 +3,23 @@
 {% block title %}Options List{% endblock %}
 
 {% block content %}
+<input type="hidden" id="tableName" value="options">
 <div class="table-container">
     <table class="table table-hover">
         <thead class="table-light">
             <tr>
+                <th width="40"><input type="checkbox" onclick="toggleAll(this)"></th>
                 <th>ID</th>
                 <th>Type</th>
                 <th>Text</th>
                 <th>Image</th>
+                <th class="text-end">Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for opt in options %}
             <tr>
+                <td><input type="checkbox" name="rowSelect" value="{{ opt.id }}" onclick="updateBulkActions()"></td>
                 <td>{{ opt.id }}</td>
                 <td><span class="badge {% if opt.type == 'image' %}bg-info{% else %}bg-secondary{% endif %}">{{ opt.type }}</span></td>
                 <td>{{ opt.text or '' }}</td>
@@ -26,13 +30,77 @@
                     <span class="text-muted">N/A</span>
                     {% endif %}
                 </td>
+                <td class="text-end">
+                    <button class="btn btn-sm btn-outline-primary me-1" onclick="editOption({{ opt.id }}, '{{ opt.text|escapejs if opt.text else '' }}')">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteRecord('options', {{ opt.id }})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="4" class="text-center">No options found.</td>
+                <td colspan="6" class="text-center">No options found.</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Option Text</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editId">
+                <div class="mb-3">
+                    <label class="form-label">Option Text</label>
+                    <textarea class="form-control" id="editText" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveEdit()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+
+    function editOption(id, text) {
+        document.getElementById('editId').value = id;
+        document.getElementById('editText').value = text;
+        editModal.show();
+    }
+
+    async function saveEdit() {
+        const id = document.getElementById('editId').value;
+        const text = document.getElementById('editText').value;
+
+        try {
+            const response = await fetch(`/admin/edit/options/${id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: text })
+            });
+            const result = await response.json();
+            if (result.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + result.error);
+            }
+        } catch (error) {
+            alert('Request failed: ' + error);
+        }
+    }
+</script>
 {% endblock %}

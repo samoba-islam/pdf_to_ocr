@@ -45,6 +45,8 @@
    - Dashboard for managing extracted MCQ data
    - Settings section for system maintenance
    - Manual cleanup of Uploads and Outputs folders with disk usage indicators
+   - Granular "Clear Specific Data" feature to wipe individual tables (Exams, Years, etc.)
+   - One-click "Clear All Data" feature to securely wipe the entire database
 
 ### User Interface
 1. **Upload Section**

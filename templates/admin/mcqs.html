@@ -3,21 +3,25 @@
 {% block title %}MCQs List{% endblock %}
 
 {% block content %}
+<input type="hidden" id="tableName" value="mcqs">
 <div class="table-container">
     <table class="table table-hover">
         <thead class="table-light">
             <tr>
+                <th width="40"><input type="checkbox" onclick="toggleAll(this)"></th>
                 <th>ID</th>
                 <th>Question</th>
                 <th>Option IDs</th>
                 <th>Answer Index</th>
                 <th>Lang</th>
                 <th>Subject</th>
+                <th class="text-end">Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for mcq in mcqs %}
             <tr>
+                <td><input type="checkbox" name="rowSelect" value="{{ mcq.id }}" onclick="updateBulkActions()"></td>
                 <td>{{ mcq.id }}</td>
                 <td title="{{ mcq.question_text }}">{{ mcq.question_text[:50] }}...</td>
                 <td>
@@ -28,13 +32,97 @@
                 <td><span class="badge badge-answer">{{ mcq.answer_index }}</span></td>
                 <td>{{ mcq.language }}</td>
                 <td>{{ mcq.subject or '' }}</td>
+                <td class="text-end">
+                    <button class="btn btn-sm btn-outline-primary me-1" onclick="editMcq({{ mcq.id }}, {{ mcq.answer_index }}, '{{ mcq.language }}', '{{ (mcq.subject or '')|escapejs }}')">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteRecord('mcqs', {{ mcq.id }})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="6" class="text-center">No MCQs found.</td>
+                <td colspan="8" class="text-center">No MCQs found.</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit MCQ</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editId">
+                <div class="mb-3">
+                    <label class="form-label">Answer Index (1-4)</label>
+                    <input type="number" class="form-control" id="editAnswerIndex" min="1" max="4">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Language</label>
+                    <select class="form-select" id="editLanguage">
+                        <option value="bn">Bengali (bn)</option>
+                        <option value="en">English (en)</option>
+                        <option value="mixed">Mixed</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Subject</label>
+                    <input type="text" class="form-control" id="editSubject">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveEdit()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+
+    function editMcq(id, answerIndex, lang, subject) {
+        document.getElementById('editId').value = id;
+        document.getElementById('editAnswerIndex').value = answerIndex;
+        document.getElementById('editLanguage').value = lang;
+        document.getElementById('editSubject').value = subject;
+        editModal.show();
+    }
+
+    async function saveEdit() {
+        const id = document.getElementById('editId').value;
+        const answerIndex = document.getElementById('editAnswerIndex').value;
+        const language = document.getElementById('editLanguage').value;
+        const subject = document.getElementById('editSubject').value;
+
+        try {
+            const response = await fetch(`/admin/edit/mcqs/${id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    answer_index: answerIndex,
+                    language: language,
+                    subject: subject
+                })
+            });
+            const result = await response.json();
+            if (result.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + result.error);
+            }
+        } catch (error) {
+            alert('Request failed: ' + error);
+        }
+    }
+</script>
 {% endblock %}

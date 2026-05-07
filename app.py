@@ -8,6 +8,7 @@ import fitz
 from PIL import Image
 import io
 import easyocr
+import numpy as np
 import base64
 import requests
 import shutil
@@ -16,9 +17,19 @@ import json
 import mysql.connector
 from mysql.connector import Error
 from html import unescape
+from jinja2 import utils
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
+
+# Custom filter for JavaScript escaping
+@app.template_filter('escapejs')
+def escapejs_filter(s):
+    if s is None:
+        return ""
+    # Standard JS escaping
+    return str(s).replace('\\', '\\\\').replace("'", "\\'").replace('"', '\\"').replace('\n', '\\n').replace('\r', '\\r')
+
 app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['OUTPUT_FOLDER'] = 'outputs'
@@ -2287,6 +2298,143 @@ def clear_folder(folder_type):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/admin/clear_all_data', methods=['POST'])
+def clear_all_data():
+    try:
+        conn = mysql.connector.connect(**app.config['DB_CONFIG'])
+        cursor = conn.cursor()
+
+        # Disable foreign key checks to allow truncating tables in any order
+        cursor.execute('SET FOREIGN_KEY_CHECKS = 0')
+
+        tables = ['exam_questions', 'mcqs', 'questions', 'options', 'years', 'exams']
+        for table in tables:
+            cursor.execute(f'TRUNCATE TABLE {table}')
+
+        cursor.execute('SET FOREIGN_KEY_CHECKS = 1')
+        conn.commit()
+
+        return jsonify({'success': True, 'message': 'All database records have been cleared.'})
+    except Error as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if conn.is_connected():
+            cursor.close()
+            conn.close()
+
+@app.route('/admin/clear_specific_data/<table_name>', methods=['POST'])
+def clear_specific_data(table_name):
+    allowed_tables = {'exams', 'years', 'questions', 'options', 'mcqs', 'exam_questions'}
+    if table_name not in allowed_tables:
+        return jsonify({'error': 'Invalid table'}), 400
+
+    try:
+        conn = mysql.connector.connect(**app.config['DB_CONFIG'])
+        cursor = conn.cursor()
+
+        # Disable foreign key checks to allow truncation if table is referenced
+        cursor.execute('SET FOREIGN_KEY_CHECKS = 0')
+        cursor.execute(f'TRUNCATE TABLE {table_name}')
+        cursor.execute('SET FOREIGN_KEY_CHECKS = 1')
+        conn.commit()
+
+        return jsonify({'success': True, 'message': f'All records from {table_name} have been cleared.'})
+    except Error as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if conn.is_connected():
+            cursor.close()
+            conn.close()
+
+@app.route('/admin/delete/<table_name>/<int:id>', methods=['POST'])
+def admin_delete_record(table_name, id):
+    allowed_tables = {'exams', 'years', 'questions', 'options', 'mcqs', 'exam_questions'}
+    if table_name not in allowed_tables:
+        return jsonify({'error': 'Invalid table'}), 400
+
+    try:
+        conn = mysql.connector.connect(**app.config['DB_CONFIG'])
+        cursor = conn.cursor()
+
+        # Handle foreign key constraints for mcqs and exam_questions if necessary
+        # For simplicity, we assume CASCADE or manual cleanup if needed.
+        # Most of our tables have FKs, so deleting might fail without proper order.
+
+        cursor.execute(f'DELETE FROM {table_name} WHERE id = %s', (id,))
+        conn.commit()
+        return jsonify({'success': True})
+    except Error as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if conn.is_connected():
+            cursor.close()
+            conn.close()
+
+@app.route('/admin/bulk_delete/<table_name>', methods=['POST'])
+def admin_bulk_delete(table_name):
+    allowed_tables = {'exams', 'years', 'questions', 'options', 'mcqs', 'exam_questions'}
+    if table_name not in allowed_tables:
+        return jsonify({'error': 'Invalid table'}), 400
+
+    ids = request.json.get('ids', [])
+    if not ids:
+        return jsonify({'error': 'No IDs provided'}), 400
+
+    try:
+        conn = mysql.connector.connect(**app.config['DB_CONFIG'])
+        cursor = conn.cursor()
+
+        # Use safe parameter substitution for multiple IDs
+        format_strings = ','.join(['%s'] * len(ids))
+        cursor.execute(f'DELETE FROM {table_name} WHERE id IN ({format_strings})', tuple(ids))
+
+        conn.commit()
+        return jsonify({'success': True, 'count': cursor.rowcount})
+    except Error as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if conn.is_connected():
+            cursor.close()
+            conn.close()
+
+@app.route('/admin/edit/<table_name>/<int:id>', methods=['POST'])
+def admin_edit_record(table_name, id):
+    allowed_tables = {'exams', 'years', 'questions', 'options', 'mcqs', 'exam_questions'}
+    if table_name not in allowed_tables:
+        return jsonify({'error': 'Invalid table'}), 400
+
+    data = request.json
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    try:
+        conn = mysql.connector.connect(**app.config['DB_CONFIG'])
+        cursor = conn.cursor()
+
+        # Construct dynamic UPDATE query
+        fields = []
+        values = []
+        for key, value in data.items():
+            if key != 'id':
+                fields.append(f"{key} = %s")
+                values.append(value)
+
+        if not fields:
+            return jsonify({'error': 'No fields to update'}), 400
+
+        query = f"UPDATE {table_name} SET {', '.join(fields)} WHERE id = %s"
+        values.append(id)
+
+        cursor.execute(query, tuple(values))
+        conn.commit()
+        return jsonify({'success': True})
+    except Error as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if conn.is_connected():
+            cursor.close()
+            conn.close()
+
 @app.route('/admin/mcqs')
 def admin_mcqs():
     try:
@@ -2370,7 +2518,13 @@ def admin_exam_questions():
             else:
                 item['options_detail'] = []
 
-        return render_template('admin/exam_questions.html', data=data)
+        # Fetch all exams and years for edit dropdowns
+        cursor.execute('SELECT * FROM exams ORDER BY name ASC')
+        exams = cursor.fetchall()
+        cursor.execute('SELECT * FROM years ORDER BY year DESC')
+        years = cursor.fetchall()
+
+        return render_template('admin/exam_questions.html', data=data, exams=exams, years=years)
     except Error as e:
         return str(e), 500
     finally:

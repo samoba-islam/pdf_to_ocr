@@ -3,26 +3,94 @@
 {% block title %}Years List{% endblock %}
 
 {% block content %}
+<input type="hidden" id="tableName" value="years">
 <div class="table-container">
     <table class="table table-hover">
         <thead class="table-light">
             <tr>
+                <th width="40"><input type="checkbox" onclick="toggleAll(this)"></th>
                 <th>ID</th>
                 <th>Year</th>
+                <th class="text-end">Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for year in years %}
             <tr>
+                <td><input type="checkbox" name="rowSelect" value="{{ year.id }}" onclick="updateBulkActions()"></td>
                 <td>{{ year.id }}</td>
                 <td>{{ year.year }}</td>
+                <td class="text-end">
+                    <button class="btn btn-sm btn-outline-primary me-1" onclick="editYear({{ year.id }}, '{{ year.year|escapejs }}')">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteRecord('years', {{ year.id }})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="2" class="text-center">No years found.</td>
+                <td colspan="4" class="text-center">No years found.</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Year</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editId">
+                <div class="mb-3">
+                    <label class="form-label">Year Value</label>
+                    <input type="text" class="form-control" id="editYearVal">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveEdit()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+
+    function editYear(id, year) {
+        document.getElementById('editId').value = id;
+        document.getElementById('editYearVal').value = year;
+        editModal.show();
+    }
+
+    async function saveEdit() {
+        const id = document.getElementById('editId').value;
+        const year = document.getElementById('editYearVal').value;
+
+        try {
+            const response = await fetch(`/admin/edit/years/${id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ year: year })
+            });
+            const result = await response.json();
+            if (result.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + result.error);
+            }
+        } catch (error) {
+            alert('Request failed: ' + error);
+        }
+    }
+</script>
 {% endblock %}
