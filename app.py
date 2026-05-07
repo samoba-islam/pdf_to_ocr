@@ -2,7 +2,7 @@ import os
 import uuid
 import subprocess
 import threading
-from flask import Flask, render_template, request, jsonify, send_file, session
+from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for
 from werkzeug.utils import secure_filename
 import fitz
 from PIL import Image
@@ -16,11 +16,40 @@ import re
 import json
 import mysql.connector
 from mysql.connector import Error
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_bcrypt import Bcrypt
 from html import unescape
 from jinja2 import utils
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
+
+bcrypt = Bcrypt(app)
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
+
+class User(UserMixin):
+    def __init__(self, id, username, name=None, email=None):
+        self.id = id
+        self.username = username
+        self.name = name
+        self.email = email
+
+@login_manager.user_loader
+def load_user(user_id):
+    try:
+        conn = mysql.connector.connect(**app.config['DB_CONFIG'])
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute('SELECT * FROM admins WHERE id = %s', (user_id,))
+        user_data = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        if user_data:
+            return User(id=user_data['id'], username=user_data['username'],
+                        name=user_data['name'], email=user_data['email'])
+    except:
+        pass
+    return None
 
 # Custom filter for JavaScript escaping
 @app.template_filter('escapejs')
@@ -114,6 +143,15 @@ def init_db():
         cursor = conn.cursor()
 
         # Create tables based on normalized schema (MySQL syntax)
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS admins (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            username VARCHAR(100) UNIQUE NOT NULL,
+            password VARCHAR(255) NOT NULL,
+            name VARCHAR(255),
+            email VARCHAR(255) UNIQUE
+        )''')
+
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS exams (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -1986,6 +2024,67 @@ def process_file_with_ocr(file_path, language, output_format, engine_name='easyo
     }
 
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('admin_dashboard'))
+
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+
+        try:
+            conn = mysql.connector.connect(**app.config['DB_CONFIG'])
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute('SELECT * FROM admins WHERE username = %s', (username,))
+            user_data = cursor.fetchone()
+            cursor.close()
+            conn.close()
+
+            if user_data and bcrypt.check_password_hash(user_data['password'], password):
+                user = User(id=user_data['id'], username=user_data['username'],
+                            name=user_data['name'], email=user_data['email'])
+                login_user(user)
+                return jsonify({'success': True, 'redirect': url_for('admin_dashboard')})
+            else:
+                return jsonify({'success': False, 'error': 'Invalid username or password'}), 401
+        except Error as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    return render_template('admin/login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
+
+@app.route('/create_initial_admin')
+def create_initial_admin():
+    # Only allow creating an admin if the table is empty
+    try:
+        conn = mysql.connector.connect(**app.config['DB_CONFIG'])
+        cursor = conn.cursor()
+        cursor.execute('SELECT COUNT(*) FROM admins')
+        count = cursor.fetchone()[0]
+
+        if count == 0:
+            username = 'admin'
+            password = 'password' # The user should change this
+            hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+            cursor.execute('INSERT INTO admins (username, password, name, email) VALUES (%s, %s, %s, %s)',
+                         (username, hashed_password, 'Administrator', 'admin@example.com'))
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return f"Initial admin created. Username: {username}, Password: {password}. Please delete this route or change the password immediately."
+        else:
+            cursor.close()
+            conn.close()
+            return "Admin already exists."
+    except Error as e:
+        return str(e)
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -2184,10 +2283,12 @@ def upload_to_db():
 
 # Admin Panel Routes
 @app.route('/admin')
+@login_required
 def admin_dashboard():
     return render_template('admin/dashboard.html')
 
 @app.route('/admin/exams')
+@login_required
 def admin_exams():
     try:
         conn = mysql.connector.connect(**app.config['DB_CONFIG'])
@@ -2203,6 +2304,7 @@ def admin_exams():
             conn.close()
 
 @app.route('/admin/years')
+@login_required
 def admin_years():
     try:
         conn = mysql.connector.connect(**app.config['DB_CONFIG'])
@@ -2218,6 +2320,7 @@ def admin_years():
             conn.close()
 
 @app.route('/admin/questions')
+@login_required
 def admin_questions():
     try:
         conn = mysql.connector.connect(**app.config['DB_CONFIG'])
@@ -2233,6 +2336,7 @@ def admin_questions():
             conn.close()
 
 @app.route('/admin/options')
+@login_required
 def admin_options():
     try:
         conn = mysql.connector.connect(**app.config['DB_CONFIG'])
@@ -2266,12 +2370,14 @@ def format_size(size):
     return f"{size:.2f} TB"
 
 @app.route('/admin/settings')
+@login_required
 def admin_settings():
     uploads_size = format_size(get_dir_size(app.config['UPLOAD_FOLDER']))
     outputs_size = format_size(get_dir_size(app.config['OUTPUT_FOLDER']))
     return render_template('admin/settings.html', uploads_size=uploads_size, outputs_size=outputs_size)
 
 @app.route('/admin/clear_folder/<folder_type>', methods=['POST'])
+@login_required
 def clear_folder(folder_type):
     if folder_type == 'uploads':
         folder = app.config['UPLOAD_FOLDER']
@@ -2299,6 +2405,7 @@ def clear_folder(folder_type):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/admin/clear_all_data', methods=['POST'])
+@login_required
 def clear_all_data():
     try:
         conn = mysql.connector.connect(**app.config['DB_CONFIG'])
@@ -2323,6 +2430,7 @@ def clear_all_data():
             conn.close()
 
 @app.route('/admin/clear_specific_data/<table_name>', methods=['POST'])
+@login_required
 def clear_specific_data(table_name):
     allowed_tables = {'exams', 'years', 'questions', 'options', 'mcqs', 'exam_questions'}
     if table_name not in allowed_tables:
@@ -2347,6 +2455,7 @@ def clear_specific_data(table_name):
             conn.close()
 
 @app.route('/admin/delete/<table_name>/<int:id>', methods=['POST'])
+@login_required
 def admin_delete_record(table_name, id):
     allowed_tables = {'exams', 'years', 'questions', 'options', 'mcqs', 'exam_questions'}
     if table_name not in allowed_tables:
@@ -2371,6 +2480,7 @@ def admin_delete_record(table_name, id):
             conn.close()
 
 @app.route('/admin/bulk_delete/<table_name>', methods=['POST'])
+@login_required
 def admin_bulk_delete(table_name):
     allowed_tables = {'exams', 'years', 'questions', 'options', 'mcqs', 'exam_questions'}
     if table_name not in allowed_tables:
@@ -2398,6 +2508,7 @@ def admin_bulk_delete(table_name):
             conn.close()
 
 @app.route('/admin/edit/<table_name>/<int:id>', methods=['POST'])
+@login_required
 def admin_edit_record(table_name, id):
     allowed_tables = {'exams', 'years', 'questions', 'options', 'mcqs', 'exam_questions'}
     if table_name not in allowed_tables:
@@ -2436,6 +2547,7 @@ def admin_edit_record(table_name, id):
             conn.close()
 
 @app.route('/admin/mcqs')
+@login_required
 def admin_mcqs():
     try:
         conn = mysql.connector.connect(**app.config['DB_CONFIG'])
@@ -2467,6 +2579,7 @@ def admin_mcqs():
             conn.close()
 
 @app.route('/admin/exam_questions')
+@login_required
 def admin_exam_questions():
     try:
         conn = mysql.connector.connect(**app.config['DB_CONFIG'])
@@ -2531,6 +2644,45 @@ def admin_exam_questions():
         if conn.is_connected():
             cursor.close()
             conn.close()
+
+@app.route('/admin/profile')
+@login_required
+def admin_profile():
+    return render_template('admin/profile.html')
+
+@app.route('/admin/change_password', methods=['POST'])
+@login_required
+def admin_change_password():
+    current_password = request.form.get('current_password')
+    new_password = request.form.get('new_password')
+    confirm_password = request.form.get('confirm_password')
+
+    if not current_password or not new_password or not confirm_password:
+        return jsonify({'success': False, 'error': 'Missing fields'}), 400
+
+    if new_password != confirm_password:
+        return jsonify({'success': False, 'error': 'New passwords do not match'}), 400
+
+    try:
+        conn = mysql.connector.connect(**app.config['DB_CONFIG'])
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute('SELECT password FROM admins WHERE id = %s', (current_user.id,))
+        user_data = cursor.fetchone()
+
+        if not user_data or not bcrypt.check_password_hash(user_data['password'], current_password):
+            cursor.close()
+            conn.close()
+            return jsonify({'success': False, 'error': 'Incorrect current password'}), 401
+
+        hashed_password = bcrypt.generate_password_hash(new_password).decode('utf-8')
+        cursor.execute('UPDATE admins SET password = %s WHERE id = %s', (hashed_password, current_user.id))
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({'success': True, 'message': 'Password updated successfully'})
+    except Error as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/cleanup', methods=['POST'])

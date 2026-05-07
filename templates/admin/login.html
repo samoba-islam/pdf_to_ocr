@@ -1,0 +1,89 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center" style="min-height: 70vh;">
+    <div class="col-md-4">
+        <div class="card p-4">
+            <div class="text-center mb-4">
+                <h3 class="fw-bold text-primary">Admin Login</h3>
+                <p class="text-muted">Sign in to access the admin panel</p>
+            </div>
+
+            <form id="loginForm">
+                <div class="mb-3">
+                    <label for="username" class="form-label">Username</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-user"></i></span>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label for="password" class="form-label">Password</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+                </div>
+
+                <div id="loginError" class="alert alert-danger d-none" role="alert"></div>
+
+                <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">
+                    <span id="loginBtnText">Login</span>
+                    <span id="loginSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                </button>
+            </form>
+        </div>
+
+        <div class="text-center mt-4">
+            <a href="/" class="text-decoration-none text-muted">
+                <i class="fas fa-arrow-left me-1"></i> Back to Homepage
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const form = e.target;
+    const formData = new FormData(form);
+    const errorDiv = document.getElementById('loginError');
+    const btnText = document.getElementById('loginBtnText');
+    const spinner = document.getElementById('loginSpinner');
+
+    // UI Loading state
+    errorDiv.classList.add('d-none');
+    btnText.classList.add('d-none');
+    spinner.classList.remove('d-none');
+
+    try {
+        const response = await fetch('/login', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            window.location.href = result.redirect || '/admin';
+        } else {
+            errorDiv.textContent = result.error || 'Login failed. Please try again.';
+            errorDiv.classList.remove('d-none');
+            btnText.classList.remove('d-none');
+            spinner.classList.add('d-none');
+        }
+    } catch (error) {
+        errorDiv.textContent = 'An unexpected error occurred.';
+        errorDiv.classList.remove('d-none');
+        btnText.classList.remove('d-none');
+        spinner.classList.add('d-none');
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,117 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Admin Profile{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0"><i class="fas fa-user-circle me-2 text-primary"></i>Profile Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-sm-4 text-muted">Username</div>
+                    <div class="col-sm-8 fw-bold">{{ current_user.username }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4 text-muted">Full Name</div>
+                    <div class="col-sm-8">{{ current_user.name or 'Not Set' }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4 text-muted">Email Address</div>
+                    <div class="col-sm-8">{{ current_user.email or 'Not Set' }}</div>
+                </div>
+                <div class="row">
+                    <div class="col-sm-4 text-muted">Account ID</div>
+                    <div class="col-sm-8 text-monospace small">{{ current_user.id }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0"><i class="fas fa-key me-2 text-warning"></i>Change Password</h5>
+            </div>
+            <div class="card-body">
+                <form id="changePasswordForm">
+                    <div class="mb-3">
+                        <label for="currentPassword" class="form-label">Current Password</label>
+                        <input type="password" class="form-control" id="currentPassword" name="current_password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="newPassword" class="form-label">New Password</label>
+                        <input type="password" class="form-control" id="newPassword" name="new_password" required minlength="6">
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirmPassword" class="form-label">Confirm New Password</label>
+                        <input type="password" class="form-control" id="confirmPassword" name="confirm_password" required minlength="6">
+                    </div>
+
+                    <div id="passwordMessage" class="alert d-none" role="alert"></div>
+
+                    <button type="submit" class="btn btn-warning w-100 fw-bold">
+                        <span id="updateBtnText">Update Password</span>
+                        <span id="updateSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const form = e.target;
+    const formData = new FormData(form);
+    const messageDiv = document.getElementById('passwordMessage');
+    const btnText = document.getElementById('updateBtnText');
+    const spinner = document.getElementById('updateSpinner');
+
+    // Validation
+    if (formData.get('new_password') !== formData.get('confirm_password')) {
+        messageDiv.textContent = 'New passwords do not match!';
+        messageDiv.className = 'alert alert-danger';
+        messageDiv.classList.remove('d-none');
+        return;
+    }
+
+    // UI Loading state
+    messageDiv.classList.add('d-none');
+    btnText.classList.add('d-none');
+    spinner.classList.remove('d-none');
+
+    try {
+        const response = await fetch('/admin/change_password', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            messageDiv.textContent = 'Password updated successfully!';
+            messageDiv.className = 'alert alert-success';
+            form.reset();
+        } else {
+            messageDiv.textContent = result.error || 'Failed to update password.';
+            messageDiv.className = 'alert alert-danger';
+        }
+        messageDiv.classList.remove('d-none');
+    } catch (error) {
+        messageDiv.textContent = 'An unexpected error occurred.';
+        messageDiv.className = 'alert alert-danger';
+        messageDiv.classList.remove('d-none');
+    } finally {
+        btnText.classList.remove('d-none');
+        spinner.classList.add('d-none');
+    }
+});
+</script>
+{% endblock %}

@@ -9,3 +9,5 @@ pytesseract>=0.3.13
 openai>=1.30.0
 mysql-connector-python>=8.0.0
 numpy>=1.24.0
+Flask-Login>=0.6.3
+Flask-Bcrypt>=1.0.1
