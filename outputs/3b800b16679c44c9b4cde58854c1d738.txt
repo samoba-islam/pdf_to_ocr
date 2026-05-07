@@ -1,0 +1,3 @@
+[OCR Error on page 1: Error code: 500 - {'error': {'message': 'Unknown Error.', 'type': 'server_error'}}]
+
+[OCR Error on page 2: Error code: 500 - {'error': {'message': 'Unknown Error.', 'type': 'server_error'}}]

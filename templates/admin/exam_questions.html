@@ -1,0 +1,60 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Proper Exam Questions View{% endblock %}
+
+{% block content %}
+<div class="row">
+    {% for item in data %}
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center bg-light">
+                <div>
+                    <span class="badge bg-primary">{{ item.exam_name }}</span>
+                    <span class="badge bg-info text-white">{{ item.exam_year }}</span>
+                    {% if item.subject %}
+                    <span class="badge bg-secondary">{{ item.subject }}</span>
+                    {% endif %}
+                </div>
+                <small class="text-muted">Mapping ID: {{ item.mapping_id }} | MCQ ID: {{ item.mcq_id }}</small>
+            </div>
+            <div class="card-body">
+                <h5 class="card-title fw-bold mb-3">{{ item.question_text }}</h5>
+
+                <div class="row g-3">
+                    {% for opt in item.options_detail %}
+                    <div class="col-md-6">
+                        <div class="p-3 border rounded {% if loop.index == item.answer_index %}border-success bg-success bg-opacity-10{% endif %}">
+                            <span class="fw-bold me-2">{{ loop.index }}.</span>
+                            {% if opt.type == 'image' %}
+                                {% if opt.text %}<p>{{ opt.text }}</p>{% endif %}
+                                <img src="{{ opt.image_base64 }}" class="img-fluid rounded mt-2" style="max-height: 150px;">
+                            {% else %}
+                                {{ opt.text }}
+                            {% endif %}
+
+                            {% if loop.index == item.answer_index %}
+                            <span class="float-end text-success"><i class="fas fa-check-circle"></i> Correct</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% if item.explanation %}
+                <div class="mt-4 p-3 bg-light rounded">
+                    <h6 class="fw-bold"><i class="fas fa-info-circle me-2"></i>Explanation:</h6>
+                    <p class="mb-0">{{ item.explanation }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12">
+        <div class="alert alert-info text-center">
+            No Exam-Question mappings found. Start by uploading and processing a PDF!
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

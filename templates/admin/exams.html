@@ -1,0 +1,28 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Exams List{% endblock %}
+
+{% block content %}
+<div class="table-container">
+    <table class="table table-hover">
+        <thead class="table-light">
+            <tr>
+                <th>ID</th>
+                <th>Exam Name</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for exam in exams %}
+            <tr>
+                <td>{{ exam.id }}</td>
+                <td>{{ exam.name }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="2" class="text-center">No exams found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

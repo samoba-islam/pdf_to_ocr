@@ -1,0 +1,56 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="card p-4 text-center">
+            <i class="fas fa-file-invoice fa-3x mb-3 text-primary"></i>
+            <h3>Exam Questions</h3>
+            <p class="text-muted">Joined view of all MCQ-Exam mappings</p>
+            <a href="/admin/exam_questions" class="btn btn-primary">View All</a>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-4 text-center">
+            <i class="fas fa-list-ol fa-3x mb-3 text-success"></i>
+            <h3>MCQs</h3>
+            <p class="text-muted">List of all base MCQ objects</p>
+            <a href="/admin/mcqs" class="btn btn-success">View All</a>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-4 text-center">
+            <i class="fas fa-graduation-cap fa-3x mb-3 text-info"></i>
+            <h3>Exams</h3>
+            <p class="text-muted">List of unique Exam names</p>
+            <a href="/admin/exams" class="btn btn-info text-white">View All</a>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-4 text-center">
+            <i class="fas fa-calendar-alt fa-3x mb-3 text-warning"></i>
+            <h3>Years</h3>
+            <p class="text-muted">List of unique years recorded</p>
+            <a href="/admin/years" class="btn btn-warning text-white">View All</a>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-4 text-center">
+            <i class="fas fa-question-circle fa-3x mb-3 text-danger"></i>
+            <h3>Questions</h3>
+            <p class="text-muted">Raw question text entries</p>
+            <a href="/admin/questions" class="btn btn-danger">View All</a>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-4 text-center">
+            <i class="fas fa-check-square fa-3x mb-3 text-secondary"></i>
+            <h3>Options</h3>
+            <p class="text-muted">Raw option text and images</p>
+            <a href="/admin/options" class="btn btn-secondary">View All</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,720 @@
+{
+  "mcqs": [
+    {
+      "question": "১. নিচের কোন ভগ্নাংশটি ২/৩ হতে বড়?",
+      "options": [
+        {
+          "type": "text",
+          "text": "৩৩/৫০",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৮/১১",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৩/৫",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "১৩/২৭",
+          "imageBase64": null
+        }
+      ],
+      "answer": 2,
+      "explanation": null,
+      "language": "bn",
+      "subject": "Mathematics",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "২. বার্ষিক ৫% হার মুনাফায় ৪০০ টাকার ২ বছরের চক্রবৃদ্ধি মূলধন কত?",
+      "options": [
+        {
+          "type": "text",
+          "text": "৪৪০ টাকা",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৪৪১ টাকা",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৪৪৫ টাকা",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৪৫০ টাকা",
+          "imageBase64": null
+        }
+      ],
+      "answer": 2,
+      "explanation": null,
+      "language": "bn",
+      "subject": "Mathematics",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "৩. ১০০ হতে বড় দুইটি পূর্ণসংখ্যার যোগফল ৩০০ হলে সংখ্যা দুইটির অনুপাত কত?",
+      "options": [
+        {
+          "type": "text",
+          "text": "১ : ৯",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "২ : ৫",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "২ : ৩",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৩ : ৫",
+          "imageBase64": null
+        }
+      ],
+      "answer": 3,
+      "explanation": null,
+      "language": "bn",
+      "subject": "Mathematics",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "৪. x² - 7x + 12 ≤ 0 এর সমাধান সেট-",
+      "options": [
+        {
+          "type": "text",
+          "text": "(-∞, 3]",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "(3, 4)",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "[3, 4]",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "[4, ∞)",
+          "imageBase64": null
+        }
+      ],
+      "answer": 3,
+      "explanation": null,
+      "language": "bn",
+      "subject": "Mathematics",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "৫. x² + y² + z² = 2, xy + yz + zx = 1 হলে, (x + 2y)² + (y + 2z)² + (z + 2x)² এর মান-",
+      "options": [
+        {
+          "type": "text",
+          "text": "12",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "19",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "16",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "14",
+          "imageBase64": null
+        }
+      ],
+      "answer": 4,
+      "explanation": null,
+      "language": "bn",
+      "subject": "Mathematics",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "৬. 3x - y = 3, 5x + y = 21 হলে (x, y) এর মান-",
+      "options": [
+        {
+          "type": "text",
+          "text": "(2, 5)",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "(2, 6)",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "(3, 5)",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "(3, 6)",
+          "imageBase64": null
+        }
+      ],
+      "answer": 4,
+      "explanation": null,
+      "language": "bn",
+      "subject": "Mathematics",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "৭. 1/2 * 2^(x-3) + 1 = 5 হলে x এর মান কত?",
+      "options": [
+        {
+          "type": "text",
+          "text": "3",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "4",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "5",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "6",
+          "imageBase64": null
+        }
+      ],
+      "answer": 4,
+      "explanation": null,
+      "language": "bn",
+      "subject": "Mathematics",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "৮. log_√8 x = 3 1/3 হলে x এর মান কত?",
+      "options": [
+        {
+          "type": "text",
+          "text": "32",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "4",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "3",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "√8",
+          "imageBase64": null
+        }
+      ],
+      "answer": 1,
+      "explanation": null,
+      "language": "bn",
+      "subject": "Mathematics",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "৯. ১ হতে বড় ১০০০ এর মধ্যে কতগুলো সংখ্যা আছে যারা ১৬ দ্বারা বিভাজ্য নয় কিন্তু ৩০ দ্বারা বিভাজ্য?",
+      "options": [
+        {
+          "type": "text",
+          "text": "৩৩",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৩৫",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৩৭",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৪১",
+          "imageBase64": null
+        }
+      ],
+      "answer": 0,
+      "explanation": "সঠিক উত্তর: ২৯",
+      "language": "bn",
+      "subject": "Mathematics",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "১০. একটি সিলিন্ডারের বৃত্তীয় তলের ব্যাসার্ধ ২ সে.মি. এবং উচ্চতা ৬ সে.মি. হলে, উহার তলগুলির মোট ক্ষেত্রফল কত?",
+      "options": [
+        {
+          "type": "text",
+          "text": "১৬π বর্গ সে.মি.",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৩২π বর্গ সে.মি.",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৩৬π বর্গ সে.মি.",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৪৮π বর্গ সে.মি.",
+          "imageBase64": null
+        }
+      ],
+      "answer": 2,
+      "explanation": null,
+      "language": "bn",
+      "subject": "Mathematics",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "১১. কোনো একটি ত্রিভুজের দুইটি কোণের পরিমাণ ২৮° ও ৬২°। ত্রিভুজটি কোন ধরনের?",
+      "options": [
+        {
+          "type": "text",
+          "text": "সমকোণী",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "সূক্ষ্মকোণী",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "স্থূলকোণী",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "সমদ্বিবাহু সমকোণী",
+          "imageBase64": null
+        }
+      ],
+      "answer": 1,
+      "explanation": null,
+      "language": "bn",
+      "subject": "Mathematics",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "৪ সে.মি. বাহুবিশিষ্ট বর্গক্ষেত্রে পরিলিখিত বৃত্তের ক্ষেত্রফল কত?",
+      "options": [
+        {
+          "type": "text",
+          "text": "৮π বর্গ সে.মি.",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৬π বর্গ সে.মি.",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৪π বর্গ সে.মি.",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "২√২π বর্গ সে.মি.",
+          "imageBase64": null
+        }
+      ],
+      "answer": 1,
+      "explanation": null,
+      "language": "bn",
+      "subject": "Mathematics",
+      "exam": "অগ্রহদূত Recent Job Solution"
+    },
+    {
+      "question": "CONIC শব্দটির অক্ষরগুলো নিয়ে গঠিত বিন্যাস সংখ্যা কত?",
+      "options": [
+        {
+          "type": "text",
+          "text": "২৪",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৪০",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৬০",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "১২০",
+          "imageBase64": null
+        }
+      ],
+      "answer": 3,
+      "explanation": null,
+      "language": "bn",
+      "subject": "Mathematics",
+      "exam": "অগ্রহদূত Recent Job Solution"
+    },
+    {
+      "question": "যদি A = {x : x হলো 5, 7 দ্বারা বিভাজ্য এবং x < 150} হয় তবে P(A) এর সদস্য সংখ্যা কত?",
+      "options": [
+        {
+          "type": "text",
+          "text": "৮",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "১২",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "১৪",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "১৬",
+          "imageBase64": null
+        }
+      ],
+      "answer": 4,
+      "explanation": null,
+      "language": "bn",
+      "subject": "Mathematics",
+      "exam": "অগ্রহদূত Recent Job Solution"
+    },
+    {
+      "question": "একটি থলিতে ৫টি নীল, ১০টি সাদা, ২০টি কালো বল আছে। দৈব চয়নের মাধ্যমে একটি বল তুললে সেটি সাদা না হওয়ার সম্ভাবনা কত?",
+      "options": [
+        {
+          "type": "text",
+          "text": "৩/১০",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৫/৭",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৭/৫",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৭/১০",
+          "imageBase64": null
+        }
+      ],
+      "answer": 2,
+      "explanation": null,
+      "language": "bn",
+      "subject": "Mathematics",
+      "exam": "অগ্রহদূত Recent Job Solution"
+    },
+    {
+      "question": "একজন লোক উত্তর-পশ্চিম দিকে মুখ করে আছে। সে ঘড়ির কাঁটার দিকে ৯০° ঘুরে, তারপরে ঘড়ির কাঁটার বিপরীত দিকে ১৮০° ঘুরে এবং তারপর একই দিকে আরো ৯০° ঘুরে। এখন সে কোন দিকে মুখ করে আছে?",
+      "options": [
+        {
+          "type": "text",
+          "text": "দক্ষিণ",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "দক্ষিণ-পশ্চিম",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "দক্ষিণ-পূর্ব",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "পূর্ব",
+          "imageBase64": null
+        }
+      ],
+      "answer": 3,
+      "explanation": null,
+      "language": "bn",
+      "subject": "Mental Ability",
+      "exam": "অগ্রহদূত Recent Job Solution"
+    },
+    {
+      "question": "নিম্নের শব্দগুলো অভিধানে যে ক্রমে আছে সেভাবে সাজান-\n১. Protect, ২. Pragmatic, ৩. Pastel, ৪. Postal, ৫. Pebble",
+      "options": [
+        {
+          "type": "text",
+          "text": "৪৩৫২১",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৩৫৪২১",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৩৪৫১২",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৪৩৫১২",
+          "imageBase64": null
+        }
+      ],
+      "answer": 2,
+      "explanation": null,
+      "language": "mixed",
+      "subject": "Mental Ability",
+      "exam": "অগ্রহদূত Recent Job Solution"
+    },
+    {
+      "question": "একটি ছবিতে একজন পুরুষের দিকে ইঙ্গিত করে একজন মহিলা বলেন, \"তার ভাইয়ের বাবা আমার দাদার একমাত্র ছেলে।\" ছবির পুরুষের সঙ্গে উক্ত মহিলার সম্পর্ক কী?",
+      "options": [
+        {
+          "type": "text",
+          "text": "মা",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "খালা",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "বোন",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "কন্যা",
+          "imageBase64": null
+        }
+      ],
+      "answer": 3,
+      "explanation": null,
+      "language": "bn",
+      "subject": "Mental Ability",
+      "exam": "অগ্রহদূত Recent Job Solution"
+    },
+    {
+      "question": "যদি E = 10, J = 20, O = 30 এবং T = 40 হয়, তাহলে B + E + S + T = ?",
+      "options": [
+        {
+          "type": "text",
+          "text": "৭১",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৮২",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৯০",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৯২",
+          "imageBase64": null
+        }
+      ],
+      "answer": 4,
+      "explanation": null,
+      "language": "mixed",
+      "subject": "Mental Ability",
+      "exam": "অগ্রহদূত Recent Job Solution"
+    },
+    {
+      "question": "নিচের কোন শব্দটি অন্যদের থেকে আলাদা?",
+      "options": [
+        {
+          "type": "text",
+          "text": "Kiwi",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "Eagle",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "Emu",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "Ostrich",
+          "imageBase64": null
+        }
+      ],
+      "answer": 2,
+      "explanation": null,
+      "language": "mixed",
+      "subject": "Mental Ability",
+      "exam": "অগ্রহদূত Recent Job Solution"
+    },
+    {
+      "question": "একজন মহিলা বলেছেন, \"আপনি যদি আমার নিজের বয়সকে উল্টে দেন তাহলে তা আমার স্বামীর বয়সকে নির্দেশ করে। তিনি আমার থেকে বয়সে বড় এবং আমাদের বয়সের পার্থক্য আমাদের মোট বয়সের যোগফলের এগারো ভাগের একভাগ।\" মহিলার বয়স কত?",
+      "options": [
+        {
+          "type": "text",
+          "text": "২৩ বছর",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৩৪ বছর",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৪৫ বছর",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "কোনোটিই নয়",
+          "imageBase64": null
+        }
+      ],
+      "answer": 3,
+      "explanation": null,
+      "language": "bn",
+      "subject": "Mental Ability",
+      "exam": "অগ্রহদূত Recent Job Solution"
+    },
+    {
+      "question": "একটি সভায় ১৫ জন লোক রয়েছে এবং তারা সকলেই সভা শেষে একে অপরের সাথে করমর্দন করে। মোট কতটি করমর্দন হবে?",
+      "options": [
+        {
+          "type": "text",
+          "text": "২১০",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "১০৫",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "২২৫",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "১৯৬",
+          "imageBase64": null
+        }
+      ],
+      "answer": 2,
+      "explanation": null,
+      "language": "bn",
+      "subject": "Mathematics",
+      "exam": "অগ্রহদূত Recent Job Solution"
+    },
+    {
+      "question": "সেই জুটি নির্বাচন করুন যা \"Children : pediatrician\" জুটির মধ্যে প্রকাশিত সম্পর্কটির মতো একটি সম্পর্ককে সর্বোত্তমভাবে প্রকাশ করে।",
+      "options": [
+        {
+          "type": "text",
+          "text": "Adult : Orthopedist",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "Kidney : Nephrologist",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "Females : Gynecologist",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "Skin : Dermatologist",
+          "imageBase64": null
+        }
+      ],
+      "answer": 3,
+      "explanation": null,
+      "language": "mixed",
+      "subject": "Mental Ability",
+      "exam": "অগ্রহদূত Recent Job Solution"
+    }
+  ],
+  "contexts": [
+    "৮/১১ ভগ্নাংশটি ২/৩ হতে বড়।",
+    "বার্ষিক ৫% হার মুনাফায় ৪০০ টাকার ২ বছরের চক্রবৃদ্ধি মূলধন ৪৪১ টাকা।",
+    "১০০ হতে বড় দুইটি পূর্ণসংখ্যার যোগফল ৩০০ হলে সংখ্যা দুইটির অনুপাত ২ : ৩ হতে পারে।",
+    "x² - 7x + 12 ≤ 0 অসমতাটির সমাধান সেট হলো [3, 4]।",
+    "যদি x² + y² + z² = 2 এবং xy + yz + zx = 1 হয়, তবে (x + 2y)² + (y + 2z)² + (z + 2x)² এর মান ১৪।",
+    "3x - y = 3 এবং 5x + y = 21 সমীকরণদ্বয়ের সমাধান (x, y) = (3, 6)।",
+    "1/2 * 2^(x-3) + 1 = 5 সমীকরণে x এর মান ৬।",
+    "log_√8 x = 3 1/3 হলে x এর মান ৩২।",
+    "১ হতে বড় ১০০০ এর মধ্যে ২৯টি সংখ্যা আছে যারা ১৬ দ্বারা বিভাজ্য নয় কিন্তু ৩০ দ্বারা বিভাজ্য।",
+    "২ সে.মি. ব্যাসার্ধ ও ৬ সে.মি. উচ্চতাবিশিষ্ট একটি সিলিন্ডারের তলগুলির মোট ক্ষেত্রফল ৩২π বর্গ সে.মি.।",
+    "যদি কোনো ত্রিভুজের দুটি কোণ ২৮° ও ৬২° হয়, তবে ত্রিভুজটি একটি সমকোণী ত্রিভুজ।",
+    "৪ সে.মি. বাহুবিশিষ্ট বর্গক্ষেত্রে পরিলিখিত বৃত্তের ক্ষেত্রফল ৮π বর্গ সে.মি.।",
+    "CONIC শব্দটির অক্ষরগুলো নিয়ে গঠিত বিন্যাস সংখ্যা ৬০।",
+    "যদি A = {x : x হলো 5, 7 দ্বারা বিভাজ্য এবং x < 150} হয় তবে P(A) এর সদস্য সংখ্যা ১৬।",
+    "৫টি নীল, ১০টি সাদা ও ২০টি কালো বলের থলি থেকে দৈবভাবে একটি বল তুললে সেটি সাদা না হওয়ার সম্ভাবনা ৫/৭।",
+    "উত্তর-পশ্চিম দিকে মুখ করে থাকা একজন ব্যক্তি ঘড়ির কাঁটার দিকে ৯০° ঘুরে, তারপর বিপরীত দিকে ১৮০° এবং আরও ৯০° ঘুরলে তার মুখ দক্ষিণ-পূর্ব দিকে থাকবে।",
+    "অভিধানের ক্রম অনুযায়ী শব্দগুলোর সাজানো রূপ হলো Pastel, Pebble, Postal, Pragmatic, Protect।",
+    "ছবিতে একজন পুরুষের দিকে ইঙ্গিত করে একজন মহিলা বললেন, \"তার ভাইয়ের বাবা আমার দাদার একমাত্র ছেলে।\" এক্ষেত্রে ছবির পুরুষের সঙ্গে মহিলার সম্পর্ক হলো বোন।",
+    "যদি E = 10, J = 20, O = 30 এবং T = 40 হয়, তাহলে B + E + S + T এর মান ৯২।",
+    "Kiwi, Emu এবং Ostrich উড্ডয়নাক্ষম পাখি হলেও Eagle উড়তে পারে, তাই Eagle অন্যদের থেকে আলাদা।",
+    "মহিলার বয়স ৪৫ হলে তার স্বামীর বয়স ৫৪ হবে, যা শর্তানুযায়ী তাদের বয়সের পার্থক্য যোগফলের ১১ ভাগের ১ ভাগ।",
+    "কামান থেকে সমান্তরালভাবে বিভিন্ন আকৃতির বস্তু নিক্ষেপ করলে বৃত্তাকার বা গোলকীয় বস্তুটির বায়ুর বাধা কম হওয়ার কারণে সেটি সবচেয়ে বেশি দূরে যাবে।",
+    "১৫ জন লোক একটি সভায় একে অপরের সাথে করমর্দন করলে মোট করমর্দনের সংখ্যা হবে ১০৫।",
+    "Children ও pediatrician এর সম্পর্কের ন্যায় Females ও Gynecologist শব্দজোড়টিও মানুষ ও তাদের বিশেষায়িত চিকিৎসকের সম্পর্কের উদাহরণ।"
+  ]
+}

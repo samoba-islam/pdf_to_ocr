@@ -1,0 +1,40 @@
+{% extends "admin/base.html" %}
+
+{% block title %}MCQs List{% endblock %}
+
+{% block content %}
+<div class="table-container">
+    <table class="table table-hover">
+        <thead class="table-light">
+            <tr>
+                <th>ID</th>
+                <th>Question</th>
+                <th>Option IDs</th>
+                <th>Answer Index</th>
+                <th>Lang</th>
+                <th>Subject</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for mcq in mcqs %}
+            <tr>
+                <td>{{ mcq.id }}</td>
+                <td title="{{ mcq.question_text }}">{{ mcq.question_text[:50] }}...</td>
+                <td>
+                    {% for oid in mcq.option_ids_list %}
+                    <span class="badge bg-secondary">{{ oid }}</span>
+                    {% endfor %}
+                </td>
+                <td><span class="badge badge-answer">{{ mcq.answer_index }}</span></td>
+                <td>{{ mcq.language }}</td>
+                <td>{{ mcq.subject or '' }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="text-center">No MCQs found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

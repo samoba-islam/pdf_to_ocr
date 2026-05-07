@@ -1,0 +1,709 @@
+{
+  "mcqs": [
+    {
+      "question": "নিচের কোন ভগ্নাংশটি ২/৩ হতে বড়?",
+      "options": [
+        {
+          "type": "text",
+          "text": "৩৩/৫০",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৮/১১",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৩/৫",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "১৩/২৭",
+          "imageBase64": null
+        }
+      ],
+      "answer": 2,
+      "explanation": "২/৩ ≈ ০.৬৬৬; ৩৩/৫০ = ০.৬৬; ৮/১১ ≈ ০.৭২৭; ৩/৫ = ০.৬; ১৩/২৭ ≈ ০.৪৮১। ফলে ৮/১১ ভগ্নাংশটি ২/৩ অপেক্ষা বড়।",
+      "language": "bn",
+      "subject": "Mathematics",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "বার্ষিক ৫% হার মুনাফায় ৪০০ টাকার ২ বছরের চক্রবৃদ্ধি মূলধন কত?",
+      "options": [
+        {
+          "type": "text",
+          "text": "৪৪০ টাকা",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৪৪১ টাকা",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৪৪৫ টাকা",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৪৫০ টাকা",
+          "imageBase64": null
+        }
+      ],
+      "answer": 2,
+      "explanation": "চক্রবৃদ্ধি মূলধন C = P(1 + r)^n = ৪০০(১ + ০.০৫)^২ = ৪০০(১.০৫)^২ = ৪৪১ টাকা।",
+      "language": "bn",
+      "subject": "Mathematics",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "১০০ হতে বড় দুইটি পূর্ণসংখ্যার যোগফল ৩০০ হলে সংখ্যা দুইটির অনুপাত কত?",
+      "options": [
+        {
+          "type": "text",
+          "text": "১ : ৯",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "২ : ৫",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "২ : ৩",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৩ : ৫",
+          "imageBase64": null
+        }
+      ],
+      "answer": 3,
+      "explanation": "অনুপাত ২:৩ হলে সংখ্যা দুটি ১২০ ও ১৮০। উভয়ই ১০০ অপেক্ষা বড় এবং এদের যোগফল ৩০০।",
+      "language": "bn",
+      "subject": "Mathematics",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "x² - 7x + 12 < 0 এর সমাধান-",
+      "options": [
+        {
+          "type": "text",
+          "text": "(-∞, 3]",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "(3, 4)",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "[3, 4]",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "[4, ∞)",
+          "imageBase64": null
+        }
+      ],
+      "answer": 2,
+      "explanation": "(x-3)(x-4) < 0 হলে সমাধান হবে ৩ < x < ৪ বা (৩, ৪)।",
+      "language": "mixed",
+      "subject": "Mathematics",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "x² + y² + z² = 2, xy + yz + zx = 1 হলে, (x + y)² + (y + z)² + (z + x)² এর মান-",
+      "options": [
+        {
+          "type": "text",
+          "text": "12",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "19",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "16",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "14",
+          "imageBase64": null
+        }
+      ],
+      "answer": 0,
+      "explanation": "(x+y)² + (y+z)² + (z+x)² = 2(x² + y² + z²) + 2(xy + yz + zx) = 2(2) + 2(1) = 6। প্রদত্ত অপশনে সঠিক উত্তর নেই।",
+      "language": "mixed",
+      "subject": "Mathematics",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "3x - y = 3, 5x + y = 21 হলে (x, y) এর মান-",
+      "options": [
+        {
+          "type": "text",
+          "text": "(2, 5)",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "(2, 6)",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "(3, 5)",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "(3, 6)",
+          "imageBase64": null
+        }
+      ],
+      "answer": 4,
+      "explanation": "সমীকরণ দুটি যোগ করলে ৮x = ২৪, ফলে x = ৩। প্রথম সমীকরণে x এর মান বসালে ৩(৩) - y = ৩, ফলে y = ৬।",
+      "language": "mixed",
+      "subject": "Mathematics",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "2^(x-3) + 1 = 5 হলে x এর মান কত?",
+      "options": [
+        {
+          "type": "text",
+          "text": "3",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "4",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "5",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "6",
+          "imageBase64": null
+        }
+      ],
+      "answer": 3,
+      "explanation": "2^(x-3) = 4 => 2^(x-3) = 2² => x-3 = 2 => x = 5।",
+      "language": "mixed",
+      "subject": "Mathematics",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "log_x(1/9) = -2 হলে x এর মান কত?",
+      "options": [
+        {
+          "type": "text",
+          "text": "3",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "2",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "9",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "8",
+          "imageBase64": null
+        }
+      ],
+      "answer": 1,
+      "explanation": "x^(-2) = 1/9 => 1/x² = 1/9 => x² = 9 => x = 3।",
+      "language": "mixed",
+      "subject": "Mathematics",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "১ হতে ১০০০ এর মধ্যে কতগুলো সংখ্যা আছে যারা ১৬ দ্বারা বিভাজ্য নয় কিন্তু ৩০ দ্বারা বিভাজ্য?",
+      "options": [
+        {
+          "type": "text",
+          "text": "২৯",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৩৫",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৩৭",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৪১",
+          "imageBase64": null
+        }
+      ],
+      "answer": 1,
+      "explanation": "১০০০ পর্যন্ত ৩০ দ্বারা বিভাজ্য সংখ্যা ৩৩টি। ৩০ ও ১৬ এর লসাগু ২৪০ দ্বারা বিভাজ্য সংখ্যা ৪টি। সুতরাং নির্ণেয় সংখ্যা ৩৩-৪ = ২৯টি।",
+      "language": "bn",
+      "subject": "Mathematics",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "একটি সিলিন্ডারের উচ্চতা ৬ সেমি এবং ভূমির ব্যাসার্ধ ২ সেমি হলে, উহার তলগুলির মোট ক্ষেত্রফল কত?",
+      "options": [
+        {
+          "type": "text",
+          "text": "১৬π বর্গ সেমি",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৩২π বর্গ সেমি",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৩৬π বর্গ সেমি",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৪৮π বর্গ সেমি",
+          "imageBase64": null
+        }
+      ],
+      "answer": 2,
+      "explanation": "সমগ্রতলের ক্ষেত্রফল = 2πr(h+r) = 2π * 2(6+2) = 4π * 8 = ৩২π বর্গ সেমি।",
+      "language": "bn",
+      "subject": "Mathematics",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "কোনো একটি ত্রিভুজের দুইটি কোণের পরিমাণ ২৮° ও ৬২°। ত্রিভুজটি কোন ধরনের?",
+      "options": [
+        {
+          "type": "text",
+          "text": "সমকোণী",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "সূক্ষ্মকোণী",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "স্থূলকোণী",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "সমদ্বিবাহু সমকোণী",
+          "imageBase64": null
+        }
+      ],
+      "answer": 1,
+      "explanation": "তৃতীয় কোণটি = ১৮০° - (২৮° + ৬২°) = ১৮০° - ৯০° = ৯০°। সুতরাং এটি একটি সমকোণী ত্রিভুজ।",
+      "language": "bn",
+      "subject": "Mathematics",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "৪ সেমি বাহুবিশিষ্ট বর্গক্ষেত্রে পরিলিখিত বৃত্তের ক্ষেত্রফল কত?",
+      "options": [
+        {
+          "type": "text",
+          "text": "৮π বর্গ সেমি",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৬π বর্গ সেমি",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৪π বর্গ সেমি",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "২√২π বর্গ সেমি",
+          "imageBase64": null
+        }
+      ],
+      "answer": 1,
+      "explanation": "বর্গের কর্ণই বৃত্তের ব্যাস = ৪√২। ব্যাসার্ধ r = ২√২। ক্ষেত্রফল = πr² = π(২√২)² = ৮π বর্গ সেমি।",
+      "language": "bn",
+      "subject": "Mathematics",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "CONIC শব্দটির অক্ষরগুলো নিয়ে গঠিত বিন্যাস সংখ্যা কত?",
+      "options": [
+        {
+          "type": "text",
+          "text": "২৪",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৪০",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৬০",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "১২০",
+          "imageBase64": null
+        }
+      ],
+      "answer": 3,
+      "explanation": "CONIC শব্দে ৫টি অক্ষর আছে যার মধ্যে C ২বার আছে। বিন্যাস সংখ্যা = ৫! / ২! = ১২০ / ২ = ৬০।",
+      "language": "mixed",
+      "subject": "Mathematics",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "যদি A = {x : x হলো ৫, ৭ দ্বারা বিভাজ্য এবং x < ১৫০} হয় তবে P(A) এর সদস্য সংখ্যা কত?",
+      "options": [
+        {
+          "type": "text",
+          "text": "৮",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "১২",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "১৪",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "১৬",
+          "imageBase64": null
+        }
+      ],
+      "answer": 4,
+      "explanation": "৫ ও ৭ এর লসাগু ৩৫। ১৫০ এর নিচে ৩৫ দ্বারা বিভাজ্য সংখ্যাগুলো হলো ৩৫, ৭০, ১০৫, ১৪০। অর্থাৎ n(A) = ৪। P(A) এর সদস্য সংখ্যা ২⁴ = ১৬।",
+      "language": "bn",
+      "subject": "Mathematics",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "একটি থলিতে ৫টি নীল, ১০টি সাদা, ২০টি কালো বল আছে। দৈব চয়নের মাধ্যমে একটি বল তুললে সেটি সাদা না হওয়ার সম্ভাবনা কত?",
+      "options": [
+        {
+          "type": "text",
+          "text": "৩/৭",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৪/৭",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৫/৭",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "১/৭",
+          "imageBase64": null
+        }
+      ],
+      "answer": 3,
+      "explanation": "মোট বল = ৩৫টি। সাদা নয় এমন বল (নীল+কালো) = ২৫টি। সম্ভাবনা = ২৫/৩৫ = ৫/৭।",
+      "language": "bn",
+      "subject": "Mathematics",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "একজন লোক উত্তর-পশ্চিম দিকে মুখ করে আছে। সে ঘড়ির কাটার দিকে ৯০° ঘুরে, তারপরে ঘড়ির কাটার বিপরীত দিকে ১৮০° ঘুরে এবং তারপর একই দিকে আরো ৯০° ঘুরে। এখন সে কোন দিকে মুখ করে আছে?",
+      "options": [
+        {
+          "type": "text",
+          "text": "দক্ষিণ",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "দক্ষিণ-পশ্চিম",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "দক্ষিণ-পূর্ব",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "পূর্ব",
+          "imageBase64": null
+        }
+      ],
+      "answer": 3,
+      "explanation": "উত্তর-পশ্চিম থেকে ৯০° CW ঘুরে উত্তর-পূর্বে যায়। সেখান থেকে ১৮০° CCW ঘুরে দক্ষিণ-পশ্চিমে যায়। আরও ৯০° CCW ঘুরে দক্ষিণ-পূর্বে পৌঁছায়।",
+      "language": "bn",
+      "subject": "Mental Ability",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "নিম্নের শব্দগুলো অভিধানে যে ক্রমে আছে সেভাবে সাজান: ১. Protect ২. Pragmatic ৩. Pastel ৪. Postal ৫. Pebble",
+      "options": [
+        {
+          "type": "text",
+          "text": "৪৩৫২১",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৩৫৪২১",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৩৪৫১২",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৪৩৫১২",
+          "imageBase64": null
+        }
+      ],
+      "answer": 2,
+      "explanation": "অভিধান অনুযায়ী ক্রম: Pastel (৩), Pebble (৫), Postal (৪), Pragmatic (২), Protect (১)। অর্থাৎ ৩৫৪২১।",
+      "language": "mixed",
+      "subject": "Mental Ability",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "একটি ছবিতে একজন পুরুষের দিকে ইঙ্গিত করে একজন মহিলা বলেন, \"উক্ত পুরুষের বাবা আমার দাদার একমাত্র ছেলে।\" ছবির পুরুষের সঙ্গে উক্ত মহিলার সম্পর্ক কী?",
+      "options": [
+        {
+          "type": "text",
+          "text": "মা",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "খালা",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "বোন",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "কন্যা",
+          "imageBase64": null
+        }
+      ],
+      "answer": 3,
+      "explanation": "দাদার একমাত্র ছেলে মানে মহিলার বাবা। ছবির পুরুষের বাবা যদি মহিলার বাবা হয়, তবে তারা ভাই-বোন।",
+      "language": "bn",
+      "subject": "Mental Ability",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "যদি E = 10, J = 20, O = 30 এবং T = 40 হয়, তাহলে B + E + S + T =?",
+      "options": [
+        {
+          "type": "text",
+          "text": "৭১",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৮৮",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৯১",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৯২",
+          "imageBase64": null
+        }
+      ],
+      "answer": 4,
+      "explanation": "এখানে বর্ণমালার অবস্থানকে ২ দিয়ে গুণ করা হয়েছে। B=২*২=৪, E=৫*২=১০, S=১৯*২=৩৮, T=২০*২=৪০। যোগফল ৪+১০+৩৮+৪০ = ৯২।",
+      "language": "mixed",
+      "subject": "Mental Ability",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "নিচের কোন শব্দটি অন্যদের থেকে আলাদা?",
+      "options": [
+        {
+          "type": "text",
+          "text": "Kiwi",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "Eagle",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "Emu",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "Ostrich",
+          "imageBase64": null
+        }
+      ],
+      "answer": 2,
+      "explanation": "Kiwi, Emu এবং Ostrich উড়তে পারে না। Eagle উড়তে পারে।",
+      "language": "en",
+      "subject": "Mental Ability",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "একজন মহিলা বলেছেন, আপনি যদি আমার নিজের বয়সকে উল্টে দেন তবে তা আমার স্বামীর বয়স নির্দেশ করে। তিনি আমার থেকে বয়সে বড় এবং আমাদের বয়সের পার্থক্য আমাদের মোট বয়সের যোগফলের এগারো ভাগের একভাগ। মহিলার বয়স কত?",
+      "options": [
+        {
+          "type": "text",
+          "text": "২৩ বছর",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৩৪ বছর",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "৪৫ বছর",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "কোনোটিই নয়",
+          "imageBase64": null
+        }
+      ],
+      "answer": 3,
+      "explanation": "মহিলার বয়স ৪৫ হলে স্বামীর বয়স ৫৪। পার্থক্য ৯ বছর এবং যোগফল ৯৯ বছর। ৯৯ এর ১১ ভাগের ১ ভাগ হলো ৯। শর্ত মিলে যায়।",
+      "language": "bn",
+      "subject": "Mental Ability",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "একটি সভায় ১৫ জন লোক রয়েছে এবং তারা সকলেই সভা শেষে একে অপরের সাথে করমর্দন করলে মোট কতটি করমর্দন হবে?",
+      "options": [
+        {
+          "type": "text",
+          "text": "২১০",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "১০৫",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "২২৫",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "১৯৬",
+          "imageBase64": null
+        }
+      ],
+      "answer": 2,
+      "explanation": "করমর্দন সংখ্যা = n(n-1)/2 = ১৫ * ১৪ / ২ = ১০৫।",
+      "language": "bn",
+      "subject": "Mental Ability",
+      "exam": "৪৬তম বিসিএস"
+    },
+    {
+      "question": "Pediatrician : Children সম্পর্কটির মতো সঠিক জুটি কোনটি?",
+      "options": [
+        {
+          "type": "text",
+          "text": "Adult : Orthopedist",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "Kidney : Nephrologist",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "Females : Gynecologist",
+          "imageBase64": null
+        },
+        {
+          "type": "text",
+          "text": "Skin : Dermatologist",
+          "imageBase64": null
+        }
+      ],
+      "answer": 3,
+      "explanation": "Pediatrician শিশুদের চিকিৎসা করেন, তেমনি Gynecologist মহিলাদের প্রজনন স্বাস্থ্য চিকিৎসা করেন।",
+      "language": "en",
+      "subject": "Mental Ability",
+      "exam": "৪৬তম বিসিএস"
+    }
+  ],
+  "contexts": [
+    "বার্ষিক ৫% হার মুনাফায় ৪০০ টাকার ২ বছরের চক্রবৃদ্ধি মূলধন ৪৪১ টাকা।",
+    "১০০ হতে বড় দুটি পূর্ণসংখ্যার যোগফল ৩০০ হলে তাদের অনুপাত ২ : ৩ হতে পারে (যেমন ১২০ ও ১৮০)।",
+    "x² - 7x + 12 < 0 অসমতাটির সমাধান ব্যবধি হলো (৩, ৪)।",
+    "৩x - y = ৩ এবং ৫x + y = ২১ সমীকরণদ্বয়ের সমাধান (x, y) = (৩, ৬)।",
+    "১ হতে ১০০০ এর মধ্যে ১৬ দ্বারা বিভাজ্য নয় কিন্তু ৩০ দ্বারা বিভাজ্য এমন সংখ্যার সংখ্যা ২৯টি।",
+    "উচ্চতা ৬ সেমি এবং ভূমির ব্যাসার্ধ ২ সেমি বিশিষ্ট সিলিন্ডারের সমগ্রতলের ক্ষেত্রফল ৩২π বর্গ সেমি।",
+    "ত্রিভুজের দুটি কোণ ২৮° ও ৬২° হলে সেটি একটি সমকোণী ত্রিভুজ।",
+    "৪ সেমি বাহুবিশিষ্ট বর্গের পরিলিখিত বৃত্তের ক্ষেত্রফল ৮π বর্গ সেমি।",
+    "CONIC শব্দটির অক্ষরগুলো সাজালে মোট ৬০টি বিন্যাস পাওয়া যায়।",
+    "A = {x : x হলো ৫ ও ৭ দ্বারা বিভাজ্য এবং x < ১৫০} সেটের শক্তি সেটের (Power Set) সদস্য সংখ্যা ১৬।",
+    "৫টি নীল, ১০টি সাদা ও ২০টি কালো বলের মধ্য থেকে একটি বল তুললে সেটি সাদা না হওয়ার সম্ভাবনা ৫/৭।",
+    "উত্তর-পশ্চিম দিক থেকে ঘড়ির কাঁটার দিকে ৯০°, তারপর বিপরীতে ১৮০° এবং পুনরায় ৯০° ঘুরলে অবস্থান দক্ষিণ-পূর্ব দিকে হবে।",
+    "১৫ জন ব্যক্তি একে অপরের সাথে করমর্দন করলে মোট ১০৫টি করমর্দন হয়।"
+  ]
+}

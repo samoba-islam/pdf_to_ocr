@@ -1,0 +1,38 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Options List{% endblock %}
+
+{% block content %}
+<div class="table-container">
+    <table class="table table-hover">
+        <thead class="table-light">
+            <tr>
+                <th>ID</th>
+                <th>Type</th>
+                <th>Text</th>
+                <th>Image</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for opt in options %}
+            <tr>
+                <td>{{ opt.id }}</td>
+                <td><span class="badge {% if opt.type == 'image' %}bg-info{% else %}bg-secondary{% endif %}">{{ opt.type }}</span></td>
+                <td>{{ opt.text or '' }}</td>
+                <td>
+                    {% if opt.image_base64 %}
+                    <img src="{{ opt.image_base64 }}" class="img-preview" onclick="window.open(this.src)">
+                    {% else %}
+                    <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="text-center">No options found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

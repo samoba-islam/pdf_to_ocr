@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF/Image to Text/DOCX Converter with OCR</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4F46E5;
+            --secondary-color: #818CF8;
+            --accent-color: #C7D2FE;
+            --background-color: #EEF2FF;
+            --text-color: #1E1B4B;
+            --card-bg: #FFFFFF;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--background-color);
+            color: var(--text-color);
+            min-height: 100vh;
+        }
+
+        .navbar {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            padding: 1rem 2rem;
+            box-shadow: 0 4px 6px rgba(79, 70, 229, 0.1);
+        }
+
+        .navbar-brand {
+            color: white;
+            font-weight: 600;
+            font-size: 1.5rem;
+        }
+
+        .navbar-brand i {
+            margin-right: 10px;
+        }
+
+        .main-container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(79, 70, 229, 0.1);
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 60px rgba(79, 70, 229, 0.15);
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 1.5rem 2rem;
+            border: none;
+        }
+
+        .card-header h4 {
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .card-body {
+            padding: 2rem;
+        }
+
+        .upload-zone {
+            border: 3px dashed var(--accent-color);
+            border-radius: 12px;
+            padding: 3rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--background-color);
+        }
+
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--primary-color);
+            background: rgba(79, 70, 229, 0.05);
+        }
+
+        .upload-zone i {
+            font-size: 4rem;
+            color: var(--secondary-color);
+            margin-bottom: 1rem;
+        }
+
+        .upload-zone h5 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-zone p {
+            color: #6B7280;
+            font-size: 0.9rem;
+        }
+
+        .file-info {
+            display: none;
+            background: rgba(79, 70, 229, 0.1);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .file-info.show {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .file-info i {
+            font-size: 2rem;
+            color: var(--primary-color);
+        }
+
+        .file-info .file-name {
+            flex: 1;
+            font-weight: 500;
+            word-break: break-all;
+        }
+
+        .file-info .remove-file {
+            cursor: pointer;
+            color: #EF4444;
+            font-size: 1.2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: var(--text-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .form-control, .form-select {
+            border: 2px solid var(--accent-color);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .btn-convert {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+            padding: 1rem 3rem;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .btn-convert:hover {
+            transform: scale(1.02);
+            box-shadow: 0 10px 30px rgba(79, 70, 229, 0.3);
+            color: white;
+        }
+
+        .btn-convert:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .progress-container {
+            display: none;
+            margin-top: 2rem;
+        }
+
+        .progress-container.show {
+            display: block;
+        }
+
+        .progress {
+            height: 10px;
+            border-radius: 5px;
+            background: var(--accent-color);
+        }
+
+        .progress-bar {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border-radius: 5px;
+            transition: width 0.3s ease;
+        }
+
+        .status-text {
+            text-align: center;
+            margin-top: 0.5rem;
+            color: #6B7280;
+            font-size: 0.9rem;
+        }
+
+        .result-section {
+            display: none;
+            margin-top: 2rem;
+        }
+
+        .result-section.show {
+            display: block;
+        }
+
+        .result-preview {
+            background: var(--background-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 1.5rem;
+            border: 2px solid var(--accent-color);
+        }
+
+        .result-preview h6 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .result-preview pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: inherit;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .download-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        .btn-download {
+            padding: 0.75rem 2rem;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-download-txt {
+            background: #10B981;
+            color: white;
+            border: none;
+        }
+
+        .btn-download-txt:hover {
+            background: #059669;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .btn-download-docx {
+            background: #3B82F6;
+            color: white;
+            border: none;
+        }
+
+        .btn-download-docx:hover {
+            background: #2563EB;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .error-message {
+            display: none;
+            background: #FEE2E2;
+            color: #DC2626;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-top: 1rem;
+            border: 1px solid #FECACA;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .features-section {
+            margin-top: 3rem;
+        }
+
+        .feature-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(79, 70, 229, 0.08);
+            height: 100%;
+        }
+
+        .feature-card i {
+            font-size: 2.5rem;
+            color: var(--secondary-color);
+            margin-bottom: 1rem;
+        }
+
+        .feature-card h6 {
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-card p {
+            color: #6B7280;
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 768px) {
+            .card-body {
+                padding: 1.5rem;
+            }
+
+            .upload-zone {
+                padding: 2rem 1rem;
+            }
+
+            .upload-zone i {
+                font-size: 3rem;
+            }
+
+            .download-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <span class="navbar-brand">
+                <i class="fas fa-file-pdf"></i>
+                PDF/Image to Text/DOCX Converter
+            </span>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <div class="row">
+            <div class="col-lg-8 mx-auto">
+                <div class="alert alert-info" style="margin-top: 1rem; border-radius: 10px;" id="engineAlert">
+                    <h5><i class="fas fa-info-circle"></i> EasyOCR Engine Active</h5>
+                    <p>Note: The very first extraction may take longer while EasyOCR downloads language models.</p>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h4><i class="fas fa-magic"></i> Upload File for OCR Processing</h4>
+                    </div>
+                    <div class="card-body">
+                        <form id="uploadForm">
+                            <div class="upload-zone" id="dropZone">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <h5>Drag & Drop PDF or Image Here</h5>
+                                <p>or click to browse files</p>
+                                <input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp,image/*" style="display: none;">
+                            </div>
+
+                            <div class="file-info" id="fileInfo">
+                                <i class="fas fa-file-pdf"></i>
+                                <span class="file-name" id="fileName"></span>
+                                <i class="fas fa-times-circle remove-file" id="removeFile"></i>
+                            </div>
+
+                            <div class="error-message" id="errorMessage"></div>
+
+                            <div class="row mt-4">
+                                <div class="col-md-12 mb-3">
+                                    <div class="form-group mb-0">
+                                        <label class="form-label">Extraction Engine</label>
+                                        <select class="form-select" id="engineSelect">
+                                            <option value="easyocr">EasyOCR (Local - Basic OCR)</option>
+                                            <option value="tesseract">Tesseract (Local - Fast OCR)</option>
+                                            <option value="openai_compatible">OpenAI Compatible (Local API - Vision OCR)</option>
+                                            <option value="gemini">Gemini (Local Proxy - OCR + Cleanup + Structure)</option>
+                                            <option value="aistudio">AI Studio Layout API (Cloud - Layout & Images)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6" id="languageCol">
+                                    <div class="form-group">
+                                        <label class="form-label">Language for OCR</label>
+                                        <select class="form-select" id="languageSelect">
+                                            <option value="english">English</option>
+                                            <option value="bengali">Bengali (বাংলা)</option>
+                                            <option value="both">Both (English + Bengali)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6" id="formatCol">
+                                    <div class="form-group">
+                                        <label class="form-label">Output Format</label>
+                                        <select class="form-select" id="formatSelect">
+                                            <option value="txt">Plain Text (.txt)</option>
+                                            <option value="docx">Word Document (.docx)</option>
+                                            <option value="json">Structured MCQ Dataset (.json)</option>
+                                            <option value="zip" id="optZip" style="display:none;">Markdown & Images (.zip)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="button" class="btn-convert" id="convertBtn" disabled>
+                                <i class="fas fa-cog"></i> Extract Text with OCR
+                            </button>
+                        </form>
+
+                        <div class="progress-container" id="progressContainer">
+                            <div class="progress">
+                                <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+                            </div>
+                            <p class="status-text" id="statusText">Processing...</p>
+                        </div>
+
+                        <div class="result-section" id="resultSection">
+                            <div class="result-preview">
+                                <h6><i class="fas fa-eye"></i> Extracted Text Preview</h6>
+                                <pre id="textPreview"></pre>
+                            </div>
+                            <div class="download-buttons">
+                                <div>
+                                    <button class="btn btn-download" id="downloadBtn" style="background:#4F46E5; color:white; border:none; transition: all 0.3s ease;">
+                                        <i class="fas fa-download"></i> Download Result
+                                    </button>
+                                </div>
+                                <div>
+                                    <button class="btn btn-download" id="uploadDbBtn" style="background:#10B981; color:white; border:none; transition: all 0.3s ease; display: none;">
+                                        <i class="fas fa-database"></i> Database Upload
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="features-section">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="feature-card">
+                                <i class="fas fa-language"></i>
+                                <h6>Multi-Language OCR</h6>
+                                <p>Supports English and Bengali text extraction</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="feature-card">
+                                <i class="fas fa-file-alt"></i>
+                                <h6>Multiple Formats</h6>
+                                <p>Export to TXT or DOCX format</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="feature-card">
+                                <i class="fas fa-file-pdf"></i>
+                                <h6>Scanned PDF Support</h6>
+                                <p>Extract text from image-based PDFs</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const removeFile = document.getElementById('removeFile');
+        const errorMessage = document.getElementById('errorMessage');
+        const convertBtn = document.getElementById('convertBtn');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const statusText = document.getElementById('statusText');
+        const resultSection = document.getElementById('resultSection');
+        const textPreview = document.getElementById('textPreview');
+        const languageSelect = document.getElementById('languageSelect');
+        const formatSelect = document.getElementById('formatSelect');
+        const engineSelect = document.getElementById('engineSelect');
+        const languageCol = document.getElementById('languageCol');
+        const formatCol = document.getElementById('formatCol');
+        const optZip = document.getElementById('optZip');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const uploadDbBtn = document.getElementById('uploadDbBtn');
+
+        const engineAlert = document.getElementById('engineAlert');
+
+        let selectedFile = null;
+
+        function applyEngineUI(engineValue) {
+            if (engineValue === 'aistudio') {
+                languageCol.style.display = 'none';
+                optZip.style.display = 'block';
+                if (!['zip', 'txt', 'docx', 'json'].includes(formatSelect.value)) formatSelect.value = 'zip';
+                engineAlert.innerHTML = `<h5><i class="fas fa-info-circle"></i> AI Studio Engine Active</h5><p>Cloud-based advanced document layout parsing & OCR.</p>`;
+            } else if (engineValue === 'openai_compatible') {
+                languageCol.style.display = 'none';
+                optZip.style.display = 'none';
+                if(formatSelect.value === 'zip') formatSelect.value = 'txt';
+                engineAlert.innerHTML = `<h5><i class="fas fa-info-circle"></i> OpenAI-Compatible Engine Active</h5><p>Uses your local OpenAI-compatible API endpoint for vision OCR and structured MCQ dataset extraction.</p>`;
+            } else if (engineValue === 'gemini') {
+                languageCol.style.display = 'none';
+                optZip.style.display = 'none';
+                if(formatSelect.value === 'zip') formatSelect.value = 'json';
+                engineAlert.innerHTML = `<h5><i class="fas fa-info-circle"></i> Gemini Engine Active</h5><p>Uses your local proxy Gemini model to OCR, clean, and structure directly from page images.</p>`;
+            } else if (engineValue === 'tesseract') {
+                languageCol.style.display = 'block';
+                optZip.style.display = 'none';
+                if(formatSelect.value === 'zip') formatSelect.value = 'txt';
+                engineAlert.innerHTML = `<h5><i class="fas fa-info-circle"></i> Tesseract Engine Active</h5><p>Fast, local OCR processing. JSON output uses the OpenAI-compatible text model after OCR.</p>`;
+            } else {
+                languageCol.style.display = 'block';
+                optZip.style.display = 'none';
+                if(formatSelect.value === 'zip') formatSelect.value = 'txt';
+                engineAlert.innerHTML = `<h5><i class="fas fa-info-circle"></i> EasyOCR Engine Active</h5><p>JSON output uses the OpenAI-compatible text model after OCR. The first extraction may take longer while language models download.</p>`;
+            }
+        }
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        removeFile.addEventListener('click', (e) => {
+            e.stopPropagation();
+            resetUpload();
+        });
+
+        function handleFile(file) {
+            hideError();
+            const ext = file.name.toLowerCase().split('.').pop();
+            const allowedExts = ['pdf', 'png', 'jpg', 'jpeg', 'bmp', 'tif', 'tiff', 'webp'];
+            if (!allowedExts.includes(ext)) {
+                showError('Please upload a PDF or image file (PNG, JPG, JPEG, BMP, TIF, TIFF, WEBP).');
+                return;
+            }
+            if (file.size > 50 * 1024 * 1024) {
+                showError('File size exceeds 50MB limit.');
+                return;
+            }
+            selectedFile = file;
+            fileName.textContent = file.name;
+            fileInfo.classList.add('show');
+            convertBtn.disabled = false;
+        }
+
+        function resetUpload() {
+            selectedFile = null;
+            fileInput.value = '';
+            fileInfo.classList.remove('show');
+            convertBtn.disabled = true;
+            resultSection.classList.remove('show');
+            progressContainer.classList.remove('show');
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.add('show');
+        }
+
+        function hideError() {
+            errorMessage.classList.remove('show');
+        }
+
+        function animateProgress(duration, callback) {
+            let start = 0;
+            const interval = 50;
+            const steps = duration / interval;
+            let currentStep = 0;
+
+            const timer = setInterval(() => {
+                currentStep++;
+                const progress = Math.min((currentStep / steps) * 100, 90);
+                progressBar.style.width = progress + '%';
+
+                if (currentStep >= steps) {
+                    clearInterval(timer);
+                    callback();
+                }
+            }, interval);
+        }
+
+        convertBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            hideError();
+            convertBtn.disabled = true;
+            progressContainer.classList.add('show');
+            resultSection.classList.remove('show');
+            progressBar.style.width = '0%';
+            statusText.textContent = 'Uploading file...';
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            try {
+                const uploadResponse = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const uploadResult = await uploadResponse.json();
+
+                if (!uploadResponse.ok) {
+                    throw new Error(uploadResult.error || 'Upload failed');
+                }
+
+                statusText.textContent = 'Processing with OCR...';
+
+                animateProgress(3000, async () => {
+                    try {
+                const processResponse = await fetch('/process', {
+                            method: 'POST',
+                            body: new URLSearchParams({
+                                engine: engineSelect.value,
+                                language: languageSelect.value,
+                                format: formatSelect.value
+                            })
+                        });
+
+                        const processResult = await processResponse.json();
+
+                        if (!processResponse.ok) {
+                            throw new Error(processResult.error || 'Processing failed');
+                        }
+
+                        progressBar.style.width = '100%';
+                        statusText.textContent = `Completed! Extracted ${processResult.pages} pages.`;
+
+                        textPreview.textContent = processResult.text || 'No text extracted from the file.';
+
+                        // Only show DB Upload button if format is JSON
+                        if (formatSelect.value === 'json') {
+                            uploadDbBtn.style.display = 'block';
+                        } else {
+                            uploadDbBtn.style.display = 'none';
+                        }
+
+                        // Only one download button needed now!
+
+                        setTimeout(() => {
+                            progressContainer.classList.remove('show');
+                            resultSection.classList.add('show');
+                            convertBtn.disabled = false;
+                        }, 500);
+
+                    } catch (error) {
+                        showError(error.message);
+                        progressContainer.classList.remove('show');
+                        convertBtn.disabled = false;
+                    }
+                });
+
+            } catch (error) {
+                showError(error.message);
+                progressContainer.classList.remove('show');
+                convertBtn.disabled = false;
+            }
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            const format = formatSelect.value;
+            window.location.href = `/download/${format}`;
+        });
+
+        uploadDbBtn.addEventListener('click', async () => {
+            const textData = textPreview.textContent;
+            if (!textData) return;
+
+            try {
+                const jsonData = JSON.parse(textData);
+                uploadDbBtn.disabled = true;
+                uploadDbBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+
+                const response = await fetch('/upload_to_db', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(jsonData)
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    alert(result.message || 'Data successfully uploaded to database!');
+                    uploadDbBtn.innerHTML = '<i class="fas fa-check-circle"></i> Uploaded';
+                    uploadDbBtn.classList.replace('btn-download', 'btn-success');
+                } else {
+                    throw new Error(result.error || 'Database upload failed');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+                uploadDbBtn.disabled = false;
+                uploadDbBtn.innerHTML = '<i class="fas fa-database"></i> Database Upload';
+            }
+        });
+
+        engineSelect.addEventListener('change', (e) => {
+            applyEngineUI(e.target.value);
+        });
+
+        applyEngineUI(engineSelect.value);
+    </script>
+</body>
+</html>
