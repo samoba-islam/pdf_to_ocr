@@ -1,6 +1,7 @@
 import os
 import uuid
 import subprocess
+import threading
 from flask import Flask, render_template, request, jsonify, send_file, session
 from werkzeug.utils import secure_filename
 import fitz
@@ -18,7 +19,7 @@ from html import unescape
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
-app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['OUTPUT_FOLDER'] = 'outputs'
 app.config['DB_CONFIG'] = {
@@ -27,6 +28,68 @@ app.config['DB_CONFIG'] = {
     'password': 'Xdman123456@',
     'database': 'job'
 }
+
+# Global dictionary to track job progress
+job_progress = {}
+# Global dictionary to track job controls (threading.Event for pause/resume and cancel flag)
+job_controls = {}
+
+def parse_page_range(range_str, total_pages):
+    if not range_str or range_str.lower() == 'all':
+        return list(range(1, total_pages + 1))
+
+    pages = set()
+    parts = range_str.split(',')
+    for part in parts:
+        part = part.strip()
+        if '-' in part:
+            try:
+                start, end = map(int, part.split('-'))
+                for p in range(max(1, start), min(total_pages, end) + 1):
+                    pages.add(p)
+            except ValueError:
+                continue
+        else:
+            try:
+                p = int(part)
+                if 1 <= p <= total_pages:
+                    pages.add(p)
+            except ValueError:
+                continue
+    return sorted(list(pages))
+
+@app.route('/progress/<job_id>')
+def get_progress(job_id):
+    progress = job_progress.get(job_id, {"status": "unknown", "percentage": 0})
+    return jsonify(progress)
+
+@app.route('/stop/<job_id>', methods=['POST'])
+def stop_job(job_id):
+    if job_id in job_controls:
+        job_controls[job_id]['pause_event'].clear()
+        if job_id in job_progress:
+            job_progress[job_id]['status'] = "Paused"
+        return jsonify({'success': True})
+    return jsonify({'error': 'Job not found'}), 404
+
+@app.route('/resume/<job_id>', methods=['POST'])
+def resume_job(job_id):
+    if job_id in job_controls:
+        job_controls[job_id]['pause_event'].set()
+        if job_id in job_progress:
+            job_progress[job_id]['status'] = "Resuming..."
+        return jsonify({'success': True})
+    return jsonify({'error': 'Job not found'}), 404
+
+@app.route('/cancel/<job_id>', methods=['POST'])
+def cancel_job(job_id):
+    if job_id in job_controls:
+        job_controls[job_id]['cancel_flag'] = True
+        job_controls[job_id]['pause_event'].set() # Ensure it's not stuck in pause
+        if job_id in job_progress:
+            job_progress[job_id]['status'] = "Cancelled"
+        return jsonify({'success': True})
+    return jsonify({'error': 'Job not found'}), 404
 
 IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'bmp', 'tif', 'tiff', 'webp'}
 ALLOWED_EXTENSIONS = {'pdf', *IMAGE_EXTENSIONS}
@@ -98,8 +161,25 @@ def init_db():
     except Error as e:
         print(f"Error while connecting to MySQL: {e}")
 
-# Initialize DB on startup
+def cleanup_temp_files():
+    """Remove legacy temp files and directories on startup."""
+    for folder in [app.config['UPLOAD_FOLDER'], app.config['OUTPUT_FOLDER']]:
+        if not os.path.exists(folder):
+            continue
+        for item in os.listdir(folder):
+            if item.startswith('temp_'):
+                item_path = os.path.join(folder, item)
+                try:
+                    if os.path.isdir(item_path):
+                        shutil.rmtree(item_path)
+                    else:
+                        os.remove(item_path)
+                except Exception as e:
+                    print(f"Failed to cleanup {item_path}: {e}")
+
+# Initialize DB and cleanup on startup
 init_db()
+cleanup_temp_files()
 
 OPENAI_COMPAT_BASE_URL = os.environ.get("OPENAI_COMPAT_BASE_URL", "http://localhost:8045/v1")
 OPENAI_COMPAT_API_KEY = os.environ.get("OPENAI_COMPAT_API_KEY", "sk-28d07728e1aa4ac5adb0d1fc09b7d743")
@@ -108,7 +188,7 @@ OPENAI_COMPAT_MODEL_FALLBACKS = os.environ.get("OPENAI_COMPAT_MODEL_FALLBACKS", 
 OPENAI_COMPAT_TIMEOUT_SECONDS = float(os.environ.get("OPENAI_COMPAT_TIMEOUT_SECONDS", "240"))
 OPENAI_COMPAT_PROBE_TIMEOUT_SECONDS = float(os.environ.get("OPENAI_COMPAT_PROBE_TIMEOUT_SECONDS", "12"))
 OPENAI_COMPAT_ENABLE_POSTPROCESS = os.environ.get("OPENAI_COMPAT_ENABLE_POSTPROCESS", "false").lower() == "true"
-AISTUDIO_TIMEOUT_SECONDS = float(os.environ.get("AISTUDIO_TIMEOUT_SECONDS", "300"))
+AISTUDIO_TIMEOUT_SECONDS = float(os.environ.get("AISTUDIO_TIMEOUT_SECONDS", "600"))
 AISTUDIO_MAX_GEMINI_IMAGES = int(os.environ.get("AISTUDIO_MAX_GEMINI_IMAGES", "80"))
 
 MCQ_DATASET_SYSTEM_PROMPT = """
@@ -470,13 +550,20 @@ def extract_text_with_openai_compatible(image, page_number, model):
     raise RuntimeError(f"No text returned by OpenAI-compatible engine for page {page_number}.")
 
 
-def get_document_page_images(file_path, dpi=200):
+def get_document_page_images(file_path, dpi=200, page_indices=None):
     page_images = []
 
     if is_pdf_file(file_path):
         doc = fitz.open(file_path)
         try:
-            for page_num in range(len(doc)):
+            total_pdf_pages = len(doc)
+            if page_indices is None:
+                indices = range(total_pdf_pages)
+            else:
+                # Convert 1-based to 0-based
+                indices = [i-1 for i in page_indices if 0 <= i-1 < total_pdf_pages]
+
+            for page_num in indices:
                 page = doc[page_num]
                 pix = page.get_pixmap(dpi=dpi)
                 img_bytes = pix.tobytes("png")
@@ -674,14 +761,11 @@ def extract_text_with_tesseract_image(image, language):
     lang_map = {'english': 'eng', 'bengali': 'ben', 'both': 'eng+ben'}
     tess_lang = lang_map.get(language, 'eng')
 
-    temp_img_path = os.path.join(app.config['OUTPUT_FOLDER'], f'temp_{uuid.uuid4().hex}.png')
-    image.save(temp_img_path)
-
+    # pytesseract can take PIL images directly
     try:
-        data = pytesseract.image_to_data(temp_img_path, lang=tess_lang, output_type=Output.DICT)
-    finally:
-        if os.path.exists(temp_img_path):
-            os.remove(temp_img_path)
+        data = pytesseract.image_to_data(image, lang=tess_lang, output_type=Output.DICT)
+    except Exception as e:
+        raise RuntimeError(f"Tesseract processing failed: {e}")
 
     ocr_results = []
     n_boxes = len(data['text'])
@@ -700,14 +784,13 @@ def extract_text_with_easyocr_image(image, language):
     langs = get_easyocr_langs(language)
     reader = get_reader(langs)
 
-    temp_img_path = os.path.join(app.config['OUTPUT_FOLDER'], f'temp_{uuid.uuid4().hex}.png')
-    image.save(temp_img_path)
-
+    # EasyOCR can take NumPy arrays or file paths. PIL to NumPy is efficient.
+    import numpy as np
     try:
-        result = reader.readtext(temp_img_path, detail=1)
-    finally:
-        if os.path.exists(temp_img_path):
-            os.remove(temp_img_path)
+        img_np = np.array(image.convert('RGB'))
+        result = reader.readtext(img_np, detail=1)
+    except Exception as e:
+        raise RuntimeError(f"EasyOCR processing failed: {e}")
 
     return reconstruct_layout(result)
 
@@ -1221,7 +1304,18 @@ def merge_mcq_datasets(datasets):
     }
 
 
-def process_with_gemini(file_path, output_format):
+def process_with_gemini(file_path, output_format, job_id=None, page_range=None):
+    def update_progress(percentage, status):
+        if job_id:
+            job_progress[job_id] = {"status": status, "percentage": percentage}
+
+    def check_controls():
+        if job_id and job_id in job_controls:
+            if job_controls[job_id].get('cancel_flag'):
+                raise InterruptedError("Job cancelled by user")
+            job_controls[job_id]['pause_event'].wait()
+
+    update_progress(5, "Initializing Gemini engine...")
     caps = get_openai_compat_capabilities()
     if not caps["vision_supported"]:
         raise RuntimeError(
@@ -1230,11 +1324,26 @@ def process_with_gemini(file_path, output_format):
         )
 
     model = caps["vision_model"]
-    page_images = get_document_page_images(file_path, dpi=200)
+
+    # Handle page range
+    total_pdf_pages = 0
+    if is_pdf_file(file_path):
+        doc = fitz.open(file_path)
+        total_pdf_pages = len(doc)
+        doc.close()
+
+    page_indices = parse_page_range(page_range, total_pdf_pages) if is_pdf_file(file_path) else None
+    page_images = get_document_page_images(file_path, dpi=200, page_indices=page_indices)
+    total_pages = len(page_images)
 
     if output_format == "json":
         page_datasets = []
-        for page_number, image in page_images:
+        for idx, (page_number, image) in enumerate(page_images):
+            check_controls()
+            update_progress(
+                5 + int((idx / total_pages) * 90),
+                f"Processing page {page_number} of {total_pages}..."
+            )
             page_text = extract_clean_text_with_gemini(image, page_number, model)
             page_dataset = transform_page_image_to_mcq_dataset_with_gemini(
                 image,
@@ -1244,6 +1353,10 @@ def process_with_gemini(file_path, output_format):
             )
             expected_count = get_longest_consecutive_question_count(page_text)
             if expected_count and len(page_dataset.get("mcqs", [])) < expected_count:
+                update_progress(
+                    5 + int((idx / total_pages) * 90) + 2,
+                    f"Repairing page {page_number} (found {len(page_dataset.get('mcqs', []))}/{expected_count})..."
+                )
                 missing_dataset = extract_missing_mcqs_with_gemini(
                     image,
                     page_number,
@@ -1254,13 +1367,17 @@ def process_with_gemini(file_path, output_format):
                 page_dataset = merge_mcq_datasets([page_dataset, missing_dataset])
             page_datasets.append(page_dataset)
         dataset = merge_mcq_datasets(page_datasets)
-        output_path = os.path.join(app.config['OUTPUT_FOLDER'], f'gemini_{uuid.uuid4().hex}.json')
+        output_path = os.path.join(app.config['OUTPUT_FOLDER'], f'gemini_{job_id or uuid.uuid4().hex}.json')
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(dataset, f, ensure_ascii=False, indent=2)
         preview_text = json.dumps(dataset, ensure_ascii=False, indent=2)
     else:
         extracted_text = []
-        for page_number, image in page_images:
+        for idx, (page_number, image) in enumerate(page_images):
+            update_progress(
+                5 + int((idx / total_pages) * 90),
+                f"Processing page {page_number} of {total_pages}..."
+            )
             text = extract_clean_text_with_gemini(image, page_number, model)
             extracted_text.append({
                 "page": page_number,
@@ -1270,13 +1387,13 @@ def process_with_gemini(file_path, output_format):
         full_text = "\n\n".join(page["text"] for page in extracted_text)
 
         if output_format == "txt":
-            output_path = os.path.join(app.config['OUTPUT_FOLDER'], f'gemini_{uuid.uuid4().hex}.txt')
+            output_path = os.path.join(app.config['OUTPUT_FOLDER'], f'gemini_{job_id or uuid.uuid4().hex}.txt')
             with open(output_path, 'w', encoding='utf-8') as f:
                 f.write(full_text)
             preview_text = full_text
         elif output_format == "docx":
             from docx import Document
-            output_path = os.path.join(app.config['OUTPUT_FOLDER'], f'gemini_{uuid.uuid4().hex}.docx')
+            output_path = os.path.join(app.config['OUTPUT_FOLDER'], f'gemini_{job_id or uuid.uuid4().hex}.docx')
             doc = Document()
             doc.add_heading('Gemini Extracted Text', 0)
             for page_data in extracted_text:
@@ -1288,7 +1405,7 @@ def process_with_gemini(file_path, output_format):
         else:
             raise ValueError("Gemini engine supports TXT, DOCX, and JSON output formats.")
 
-    session['output_file'] = output_path
+    update_progress(100, "Done!")
 
     return {
         'text': preview_text,
@@ -1407,171 +1524,213 @@ def create_positioned_docx_from_aistudio(layout_results, output_path):
     doc.save(output_path)
 
 
-def process_with_aistudio(file_path, output_format):
+def process_with_aistudio(file_path, output_format, job_id=None, page_range=None):
     API_URL = "https://c7h8c1o6l62ej1ze.aistudio-app.com/layout-parsing"
     TOKEN = "eabce52d47f2eacb24c9335a1a0e6b195e335efe"
 
-    with open(file_path, "rb") as file:
-        file_bytes = file.read()
-        file_data = base64.b64encode(file_bytes).decode("ascii")
+    def update_progress(percentage, status):
+        if job_id:
+            job_progress[job_id] = {"status": status, "percentage": percentage}
 
-    headers = {
-        "Authorization": f"token {TOKEN}",
-        "Content-Type": "application/json"
-    }
+    def check_controls():
+        if job_id and job_id in job_controls:
+            if job_controls[job_id].get('cancel_flag'):
+                raise InterruptedError("Job cancelled by user")
+            job_controls[job_id]['pause_event'].wait()
 
-    if is_pdf_file(file_path):
-        file_type = 0
-    elif is_image_file(file_path):
-        file_type = 1
-    else:
-        raise ValueError("AI Studio supports PDF or image files only.")
+    update_progress(5, "Initializing AI Studio...")
 
-    required_payload = {
-        "file": file_data,
-        "fileType": file_type,
-    }
-
-    optional_payload = {
-        "useDocOrientationClassify": False,
-        "useDocUnwarping": False,
-        "useChartRecognition": False,
-    }
-
-    payload = {**required_payload, **optional_payload}
+    # We will split the PDF into individual pages to avoid timeouts on large files
+    # and to provide real-time progress updates.
+    all_layout_results = []
 
     try:
-        response = requests.post(API_URL, json=payload, headers=headers, timeout=AISTUDIO_TIMEOUT_SECONDS)
-    except requests.Timeout as exc:
-        raise Exception(
-            f"AI Studio request timed out after {int(AISTUDIO_TIMEOUT_SECONDS)} seconds. "
-            "Try a smaller PDF/image, or increase AISTUDIO_TIMEOUT_SECONDS."
-        ) from exc
-    except requests.RequestException as exc:
-        raise Exception(f"AI Studio request failed: {str(exc)}")
+        page_contents = [] # List of (page_number, base64_data, is_pdf)
+        if is_pdf_file(file_path):
+            doc = fitz.open(file_path)
+            total_pdf_pages = len(doc)
 
-    if response.status_code != 200:
-        raise Exception(f"API Error {response.status_code}: {response.text}")
-    
-    result = response.json()["result"]
+            page_indices = parse_page_range(page_range, total_pdf_pages)
+            for i in [idx - 1 for idx in page_indices]: # Convert 1-based to 0-based
+                new_doc = fitz.open()
+                new_doc.insert_pdf(doc, from_page=i, to_page=i)
+                # Save small PDF to memory
+                pdf_bytes = new_doc.tobytes()
+                new_doc.close()
 
-    # Create a unique output directory for this job to extract everything
-    job_id = uuid.uuid4().hex
-    output_dir = os.path.join(app.config['OUTPUT_FOLDER'], f"aistudio_{job_id}")
-    os.makedirs(output_dir, exist_ok=True)
+                file_data = base64.b64encode(pdf_bytes).decode("ascii")
+                page_contents.append((i + 1, file_data, True))
+            doc.close()
+        else:
+            with open(file_path, "rb") as file:
+                file_bytes = file.read()
+                file_data = base64.b64encode(file_bytes).decode("ascii")
+            page_contents.append((1, file_data, False))
 
-    full_markdown_text = ""
-    image_assets = []
-    page_payloads = []
-    full_page_assets = build_source_page_image_assets(file_path)
-    pages = 0
+        total_pages = len(page_contents)
 
-    for i, res in enumerate(result.get("layoutParsingResults", [])):
-        pages += 1
-        page_assets = [
-            asset for asset in full_page_assets
-            if asset.get("id") == f"page_{pages}:full_page"
-        ]
-        md_filename = os.path.join(output_dir, f"doc_{i}.md")
-        markdown = res.get("markdown", {}) or {}
-        page_images = markdown.get("images", {}) or {}
-        page_md = markdown.get("text", "")
-        page_md_for_gemini = replace_markdown_image_sources_with_refs(page_md, pages, page_images)
-        full_markdown_text += page_md_for_gemini + "\n\n"
-        with open(md_filename, "w", encoding="utf-8") as md_file:
-            md_file.write(page_md)
-        
-        for img_path, img_url in page_images.items():
-            full_img_path = os.path.join(output_dir, img_path)
-            os.makedirs(os.path.dirname(full_img_path), exist_ok=True)
-            try:
-                img_bytes = download_image_bytes(img_url)
-                with open(full_img_path, "wb") as img_file:
-                    img_file.write(img_bytes)
-                image_assets.append({
-                    "id": f"page_{pages}:{img_path}",
-                    "path": img_path,
-                    "data_url": image_bytes_to_data_url(img_bytes, img_path),
-                })
-                page_assets.append(image_assets[-1])
-            except Exception:
-                pass
-        
-        if "outputImages" in res:
-            for img_name, img_url in res["outputImages"].items():
+        for idx, (page_num, file_data, is_pdf_page) in enumerate(page_contents):
+            check_controls()
+            update_progress(
+                5 + int((idx / total_pages) * 80),
+                f"Processing page {page_num} of {total_pages}..."
+            )
+
+            headers = {
+                "Authorization": f"token {TOKEN}",
+                "Content-Type": "application/json"
+            }
+
+            payload = {
+                "file": file_data,
+                "fileType": 0 if is_pdf_page else 1,
+                "useDocOrientationClassify": False,
+                "useDocUnwarping": False,
+                "useChartRecognition": False,
+            }
+
+            # Use a smaller timeout per page, but retry if needed
+            max_retries = 3
+            for attempt in range(max_retries):
                 try:
-                    img_response = requests.get(img_url, timeout=60)
-                    if img_response.status_code == 200:
-                        filename = os.path.join(output_dir, f"{img_name}_{i}.jpg")
-                        with open(filename, "wb") as f:
-                            f.write(img_response.content)
-                except:
+                    response = requests.post(API_URL, json=payload, headers=headers, timeout=AISTUDIO_TIMEOUT_SECONDS)
+                    if response.status_code == 200:
+                        page_result = response.json().get("result", {})
+                        all_layout_results.extend(page_result.get("layoutParsingResults", []))
+                        break
+                    else:
+                        if attempt == max_retries - 1:
+                            raise Exception(f"API Error {response.status_code}: {response.text}")
+                except requests.Timeout:
+                    if attempt == max_retries - 1:
+                        raise Exception(f"AI Studio request timed out on page {page_num}")
+                except Exception as e:
+                    if attempt == max_retries - 1:
+                        raise e
+
+        update_progress(85, "Merging results and generating output...")
+
+        # Now we have all layout results, we can proceed with the rest of the original logic
+        # but using all_layout_results instead of result["layoutParsingResults"]
+
+        output_dir = os.path.join(app.config['OUTPUT_FOLDER'], f"aistudio_{job_id or uuid.uuid4().hex}")
+        os.makedirs(output_dir, exist_ok=True)
+
+        full_markdown_text = ""
+        image_assets = []
+        page_payloads = []
+        full_page_assets = build_source_page_image_assets(file_path)
+        pages = 0
+
+        for i, res in enumerate(all_layout_results):
+            pages += 1
+            page_assets = [
+                asset for asset in full_page_assets
+                if asset.get("id") == f"page_{pages}:full_page"
+            ]
+            md_filename = os.path.join(output_dir, f"doc_{i}.md")
+            markdown = res.get("markdown", {}) or {}
+            page_images = markdown.get("images", {}) or {}
+            page_md = markdown.get("text", "")
+            page_md_for_gemini = replace_markdown_image_sources_with_refs(page_md, pages, page_images)
+            full_markdown_text += page_md_for_gemini + "\n\n"
+            with open(md_filename, "w", encoding="utf-8") as md_file:
+                md_file.write(page_md)
+
+            for img_path, img_url in page_images.items():
+                full_img_path = os.path.join(output_dir, img_path)
+                os.makedirs(os.path.dirname(full_img_path), exist_ok=True)
+                try:
+                    img_bytes = download_image_bytes(img_url)
+                    with open(full_img_path, "wb") as img_file:
+                        img_file.write(img_bytes)
+                    image_assets.append({
+                        "id": f"page_{pages}:{img_path}",
+                        "path": img_path,
+                        "data_url": image_bytes_to_data_url(img_bytes, img_path),
+                    })
+                    page_assets.append(image_assets[-1])
+                except Exception:
                     pass
 
-        page_payloads.append({
-            "text": page_md_for_gemini,
-            "assets": page_assets,
-        })
+            if "outputImages" in res:
+                for img_name, img_url in res["outputImages"].items():
+                    try:
+                        img_response = requests.get(img_url, timeout=60)
+                        if img_response.status_code == 200:
+                            filename = os.path.join(output_dir, f"{img_name}_{i}.jpg")
+                            with open(filename, "wb") as f:
+                                f.write(img_response.content)
+                    except:
+                        pass
 
-    # Create zip archive of the directory
-    zip_path_base = os.path.join(app.config['OUTPUT_FOLDER'], f"aistudio_{job_id}")
-    shutil.make_archive(zip_path_base, 'zip', output_dir)
-    
-    if output_format == 'json':
-        caps = get_openai_compat_capabilities()
-        model = caps["vision_model"] or caps["text_model"]
-        if caps["vision_supported"]:
-            page_datasets = []
-            for page_payload in page_payloads:
-                page_text = page_payload.get("text") or ""
-                page_assets_for_model = page_payload.get("assets") or []
-                if not page_text.strip():
-                    continue
-                page_dataset = transform_aistudio_layout_to_mcq_dataset(page_text, page_assets_for_model, model)
-                repaired_mcqs = []
-                for mcq in page_dataset.get("mcqs", []):
-                    if mcq.get("answer") is None:
-                        mcq = repair_aistudio_mcq_with_page_image(
-                            mcq,
-                            page_text,
-                            page_assets_for_model,
-                            model,
-                        )
-                    repaired_mcqs.append(mcq)
-                page_dataset["mcqs"] = repaired_mcqs
-                page_datasets.append(page_dataset)
-            dataset = merge_mcq_datasets(page_datasets)
+            page_payloads.append({
+                "text": page_md_for_gemini,
+                "assets": page_assets,
+            })
+
+        # Create zip archive of the directory
+        zip_path_base = os.path.join(app.config['OUTPUT_FOLDER'], f"aistudio_{job_id or uuid.uuid4().hex}")
+        shutil.make_archive(zip_path_base, 'zip', output_dir)
+
+        if output_format == 'json':
+            update_progress(90, "Converting to JSON dataset...")
+            caps = get_openai_compat_capabilities()
+            model = caps["vision_model"] or caps["text_model"]
+            if caps["vision_supported"]:
+                page_datasets = []
+                for idx, page_payload in enumerate(page_payloads):
+                    update_progress(90 + int((idx/len(page_payloads))*9), f"Analyzing page {idx+1} layout...")
+                    page_text = page_payload.get("text") or ""
+                    page_assets_for_model = page_payload.get("assets") or []
+                    if not page_text.strip():
+                        continue
+                    page_dataset = transform_aistudio_layout_to_mcq_dataset(page_text, page_assets_for_model, model)
+                    repaired_mcqs = []
+                    for mcq in page_dataset.get("mcqs", []):
+                        if mcq.get("answer") is None:
+                            mcq = repair_aistudio_mcq_with_page_image(
+                                mcq,
+                                page_text,
+                                page_assets_for_model,
+                                model,
+                            )
+                        repaired_mcqs.append(mcq)
+                    page_dataset["mcqs"] = repaired_mcqs
+                    page_datasets.append(page_dataset)
+                dataset = merge_mcq_datasets(page_datasets)
+            else:
+                dataset = transform_ocr_text_to_mcq_dataset(full_markdown_text, model)
+            final_output_path = os.path.join(app.config['OUTPUT_FOLDER'], f"aistudio_{job_id or uuid.uuid4().hex}.json")
+            with open(final_output_path, 'w', encoding='utf-8') as f:
+                json.dump(dataset, f, ensure_ascii=False, indent=2)
+        elif output_format == 'zip':
+            final_output_path = zip_path_base + ".zip"
+        elif output_format == 'txt':
+            final_output_path = os.path.join(app.config['OUTPUT_FOLDER'], f"aistudio_{job_id or uuid.uuid4().hex}.txt")
+            with open(final_output_path, 'w', encoding='utf-8') as f:
+                f.write(full_markdown_text)
+        elif output_format == 'docx':
+            final_output_path = os.path.join(app.config['OUTPUT_FOLDER'], f"aistudio_{job_id or uuid.uuid4().hex}.docx")
+            create_positioned_docx_from_aistudio(all_layout_results, final_output_path)
         else:
-            dataset = transform_ocr_text_to_mcq_dataset(full_markdown_text, model)
-        final_output_path = os.path.join(app.config['OUTPUT_FOLDER'], f"aistudio_{job_id}.json")
-        with open(final_output_path, 'w', encoding='utf-8') as f:
-            json.dump(dataset, f, ensure_ascii=False, indent=2)
-    elif output_format == 'zip':
-        final_output_path = zip_path_base + ".zip"
-    elif output_format == 'txt':
-        final_output_path = os.path.join(app.config['OUTPUT_FOLDER'], f"aistudio_{job_id}.txt")
-        with open(final_output_path, 'w', encoding='utf-8') as f:
-            f.write(full_markdown_text)
-    elif output_format == 'docx':
-        final_output_path = os.path.join(app.config['OUTPUT_FOLDER'], f"aistudio_{job_id}.docx")
-        create_positioned_docx_from_aistudio(result.get("layoutParsingResults", []), final_output_path)
-    else:
-        final_output_path = zip_path_base + ".zip"
+            final_output_path = zip_path_base + ".zip"
 
-    # Store path of formatted file in session for download
-    session['output_file'] = final_output_path
-    
-    # Optional cleanup of the unzipped folder
-    try:
-        shutil.rmtree(output_dir)
-    except:
-        pass
+        update_progress(100, "Done!")
 
-    return {
-        'text': json.dumps(dataset, ensure_ascii=False, indent=2) if output_format == 'json' else full_markdown_text,
-        'pages': pages,
-        'output_path': final_output_path
-    }
+        # Optional cleanup
+        try:
+            shutil.rmtree(output_dir)
+        except:
+            pass
+
+        return {
+            'text': json.dumps(dataset, ensure_ascii=False, indent=2) if output_format == 'json' else full_markdown_text,
+            'pages': pages,
+            'output_path': final_output_path
+        }
+    except Exception as e:
+        raise e
 
 
 def reconstruct_layout(ocr_results):
@@ -1667,7 +1826,20 @@ def reconstruct_layout(ocr_results):
     return "\n".join(output)
 
 
-def process_file_with_ocr(file_path, language, output_format, engine_name='easyocr'):
+def process_file_with_ocr(file_path, language, output_format, engine_name='easyocr', job_id=None, page_range=None):
+    def update_progress(percentage, status):
+        if job_id:
+            job_progress[job_id] = {"status": status, "percentage": percentage}
+
+    def check_controls():
+        if job_id and job_id in job_controls:
+            # Check for cancellation
+            if job_controls[job_id].get('cancel_flag'):
+                raise InterruptedError("Job cancelled by user")
+            # Handle pause
+            job_controls[job_id]['pause_event'].wait()
+
+    update_progress(5, "Initializing OCR engine...")
     if engine_name == 'easyocr':
         langs = get_easyocr_langs(language)
         reader = get_reader(langs)
@@ -1679,17 +1851,31 @@ def process_file_with_ocr(file_path, language, output_format, engine_name='easyo
 
     extracted_text = []
     dpi = 200 if engine_name == 'openai_compatible' else 300
-    page_images = get_document_page_images(file_path, dpi=dpi)
 
-    for page_number, img in page_images:
+    # Handle page range
+    total_pdf_pages = 0
+    if is_pdf_file(file_path):
+        doc = fitz.open(file_path)
+        total_pdf_pages = len(doc)
+        doc.close()
 
-        temp_img_path = os.path.join(app.config['OUTPUT_FOLDER'], f'temp_{uuid.uuid4().hex}.png')
-        img.save(temp_img_path)
+    page_indices = parse_page_range(page_range, total_pdf_pages) if is_pdf_file(file_path) else None
+    page_images = get_document_page_images(file_path, dpi=dpi, page_indices=page_indices)
+    total_pages = len(page_images)
+
+    for idx, (page_number, img) in enumerate(page_images):
+        check_controls()
+        update_progress(
+            5 + int((idx / total_pages) * 85),
+            f"Processing page {page_number} of {total_pages}..."
+        )
 
         try:
             if engine_name == 'easyocr':
-                # Extract text using EasyOCR with bounding box details
-                result = reader.readtext(temp_img_path, detail=1)
+                # EasyOCR can take PIL images directly
+                import numpy as np
+                img_np = np.array(img)
+                result = reader.readtext(img_np, detail=1)
                 text = reconstruct_layout(result)
             elif engine_name == 'tesseract':
                 import pytesseract
@@ -1699,8 +1885,9 @@ def process_file_with_ocr(file_path, language, output_format, engine_name='easyo
                         "Tesseract executable not found. Install Tesseract OCR "
                         "or add tesseract.exe to your PATH."
                     )
-                data = pytesseract.image_to_data(temp_img_path, lang=tess_lang, output_type=Output.DICT)
-                
+                # pytesseract can take PIL images directly
+                data = pytesseract.image_to_data(img, lang=tess_lang, output_type=Output.DICT)
+
                 ocr_results = []
                 n_boxes = len(data['text'])
                 for i in range(n_boxes):
@@ -1741,9 +1928,6 @@ def process_file_with_ocr(file_path, language, output_format, engine_name='easyo
                         text = fallback_text
         except Exception as e:
             text = f"[OCR Error on page {page_number}: {str(e)}]"
-        finally:
-            if os.path.exists(temp_img_path):
-                os.remove(temp_img_path)
 
         extracted_text.append({
             'page': page_number,
@@ -1755,18 +1939,18 @@ def process_file_with_ocr(file_path, language, output_format, engine_name='easyo
     if output_format == 'json':
         openai_caps = get_openai_compat_capabilities()
         dataset = transform_ocr_text_to_mcq_dataset(full_text, openai_caps['text_model'])
-        output_path = os.path.join(app.config['OUTPUT_FOLDER'], f'{uuid.uuid4().hex}.json')
+        output_path = os.path.join(app.config['OUTPUT_FOLDER'], f'{job_id or uuid.uuid4().hex}.json')
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(dataset, f, ensure_ascii=False, indent=2)
         preview_text = json.dumps(dataset, ensure_ascii=False, indent=2)
     elif output_format == 'txt':
-        output_path = os.path.join(app.config['OUTPUT_FOLDER'], f'{uuid.uuid4().hex}.txt')
+        output_path = os.path.join(app.config['OUTPUT_FOLDER'], f'{job_id or uuid.uuid4().hex}.txt')
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(full_text)
         preview_text = full_text
     elif output_format == 'docx':
         from docx import Document
-        output_path = os.path.join(app.config['OUTPUT_FOLDER'], f'{uuid.uuid4().hex}.docx')
+        output_path = os.path.join(app.config['OUTPUT_FOLDER'], f'{job_id or uuid.uuid4().hex}.docx')
         doc = Document()
         doc.add_heading('Extracted Text from PDF', 0)
 
@@ -1808,11 +1992,13 @@ def upload():
 
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], f'{uuid.uuid4().hex}_{filename}')
+        job_id = uuid.uuid4().hex
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], f'{job_id}_{filename}')
         file.save(filepath)
         session['uploaded_file'] = filepath
         session['original_filename'] = filename
-        return jsonify({'success': True, 'filename': filename}), 200
+        session['job_id'] = job_id
+        return jsonify({'success': True, 'filename': filename, 'job_id': job_id}), 200
 
     return jsonify({'error': 'Invalid file type. Upload a PDF or image file.'}), 400
 
@@ -1822,36 +2008,74 @@ def process():
     if 'uploaded_file' not in session:
         return jsonify({'error': 'No file uploaded'}), 400
 
+    job_id = session.get('job_id')
+    if not job_id:
+        return jsonify({'error': 'No job ID found'}), 400
+
     engine = request.form.get('engine', 'easyocr')
     language = request.form.get('language', 'english')
     output_format = request.form.get('format', 'txt')
+    page_range = request.form.get('page_range', 'all')
+    file_path = session['uploaded_file']
 
-    try:
-        if engine == 'aistudio':
-            result = process_with_aistudio(session['uploaded_file'], output_format)
-        elif engine == 'gemini':
-            result = process_with_gemini(session['uploaded_file'], output_format)
-        else:
-            result = process_file_with_ocr(session['uploaded_file'], language, output_format, engine)
-            
-        return jsonify({
-            'success': True,
-            'text': result['text'],
-            'pages': result['pages']
-        }), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    # Initialize job controls
+    job_controls[job_id] = {
+        'pause_event': threading.Event(),
+        'cancel_flag': False
+    }
+    job_controls[job_id]['pause_event'].set() # Initially running
+
+    def run_process():
+        try:
+            job_progress[job_id] = {"status": "Starting...", "percentage": 0}
+
+            if engine == 'aistudio':
+                result = process_with_aistudio(file_path, output_format, job_id, page_range)
+            elif engine == 'gemini':
+                result = process_with_gemini(file_path, output_format, job_id, page_range)
+            else:
+                result = process_file_with_ocr(file_path, language, output_format, engine, job_id, page_range)
+
+            job_progress[job_id] = {
+                "status": "Completed",
+                "percentage": 100,
+                "result": {
+                    'success': True,
+                    'text': result['text'],
+                    'pages': result['pages'],
+                    'output_file': result['output_path']
+                }
+            }
+        except InterruptedError:
+            job_progress[job_id] = {"status": "Cancelled", "percentage": 0}
+        except Exception as e:
+            job_progress[job_id] = {"status": "Error", "percentage": 0, "error": str(e)}
+        finally:
+            # Cleanup job controls after completion/error/cancel
+            if job_id in job_controls:
+                del job_controls[job_id]
+
+    thread = threading.Thread(target=run_process)
+    thread.start()
+
+    return jsonify({'success': True, 'job_id': job_id}), 200
 
 
 @app.route('/download/<format>')
 def download(format):
-    if 'output_file' not in session:
-        return jsonify({'error': 'No file to download'}), 400
+    job_id = request.args.get('job_id')
+    output_path = None
 
-    output_path = session['output_file']
+    if job_id and job_id in job_progress:
+        job_data = job_progress[job_id]
+        if job_data.get('status') == 'Completed' and 'result' in job_data:
+            output_path = job_data['result'].get('output_file')
 
-    if not os.path.exists(output_path):
-        return jsonify({'error': 'File not found'}), 404
+    if not output_path and 'output_file' in session:
+        output_path = session['output_file']
+
+    if not output_path or not os.path.exists(output_path):
+        return jsonify({'error': 'File not found or processing not completed'}), 404
 
     original_name = session.get('original_filename', 'output')
     base_name = os.path.splitext(original_name)[0]
@@ -2011,6 +2235,57 @@ def admin_options():
         if conn.is_connected():
             cursor.close()
             conn.close()
+
+def get_dir_size(path):
+    total_size = 0
+    if not os.path.exists(path):
+        return 0
+    for dirpath, dirnames, filenames in os.walk(path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            if not os.path.islink(fp):
+                total_size += os.path.getsize(fp)
+    return total_size
+
+def format_size(size):
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if size < 1024.0:
+            return f"{size:.2f} {unit}"
+        size /= 1024.0
+    return f"{size:.2f} TB"
+
+@app.route('/admin/settings')
+def admin_settings():
+    uploads_size = format_size(get_dir_size(app.config['UPLOAD_FOLDER']))
+    outputs_size = format_size(get_dir_size(app.config['OUTPUT_FOLDER']))
+    return render_template('admin/settings.html', uploads_size=uploads_size, outputs_size=outputs_size)
+
+@app.route('/admin/clear_folder/<folder_type>', methods=['POST'])
+def clear_folder(folder_type):
+    if folder_type == 'uploads':
+        folder = app.config['UPLOAD_FOLDER']
+    elif folder_type == 'outputs':
+        folder = app.config['OUTPUT_FOLDER']
+    else:
+        return jsonify({'error': 'Invalid folder type'}), 400
+
+    try:
+        count = 0
+        for item in os.listdir(folder):
+            item_path = os.path.join(folder, item)
+            try:
+                if os.path.isfile(item_path) or os.path.islink(item_path):
+                    os.unlink(item_path)
+                    count += 1
+                elif os.path.isdir(item_path):
+                    shutil.rmtree(item_path)
+                    count += 1
+            except Exception as e:
+                print(f'Failed to delete {item_path}. Reason: {e}')
+
+        return jsonify({'success': True, 'count': count})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/admin/mcqs')
 def admin_mcqs():

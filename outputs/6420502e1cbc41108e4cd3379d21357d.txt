@@ -1,1 +1,0 @@
-[OCR Error on page 1: cannot import name 'find_loader' from 'pkgutil' (C:\Users\user\AppData\Local\Python\pythoncore-3.14-64\Lib\pkgutil.py)]

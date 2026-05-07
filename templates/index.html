@@ -421,6 +421,11 @@
                                             <option value="zip" id="optZip" style="display:none;">Markdown & Images (.zip)</option>
                                         </select>
                                     </div>
+                                <div class="col-md-6" id="rangeCol">
+                                    <div class="form-group">
+                                        <label class="form-label">Page Range (e.g. 1-5, 8, 11-13)</label>
+                                        <input type="text" class="form-control" id="pageRangeInput" placeholder="all" value="all">
+                                    </div>
                                 </div>
                             </div>
 
@@ -434,6 +439,17 @@
                                 <div class="progress-bar" id="progressBar" style="width: 0%"></div>
                             </div>
                             <p class="status-text" id="statusText">Processing...</p>
+                            <div class="job-controls mt-2 text-center" id="jobControls" style="display:none;">
+                                <button class="btn btn-sm btn-warning me-2" id="stopBtn">
+                                    <i class="fas fa-pause"></i> Stop
+                                </button>
+                                <button class="btn btn-sm btn-success me-2" id="resumeBtn" style="display:none;">
+                                    <i class="fas fa-play"></i> Resume
+                                </button>
+                                <button class="btn btn-sm btn-danger" id="cancelBtn">
+                                    <i class="fas fa-times"></i> Cancel
+                                </button>
+                            </div>
                         </div>
 
                         <div class="result-section" id="resultSection">
@@ -581,8 +597,8 @@
                 showError('Please upload a PDF or image file (PNG, JPG, JPEG, BMP, TIF, TIFF, WEBP).');
                 return;
             }
-            if (file.size > 50 * 1024 * 1024) {
-                showError('File size exceeds 50MB limit.');
+            if (file.size > 1024 * 1024 * 1024) {
+                showError('File size exceeds 1GB limit.');
                 return;
             }
             selectedFile = file;
@@ -627,12 +643,23 @@
             }, interval);
         }
 
+        let currentJobId = null;
+
+        const pageRangeInput = document.getElementById('pageRangeInput');
+        const jobControls = document.getElementById('jobControls');
+        const stopBtn = document.getElementById('stopBtn');
+        const resumeBtn = document.getElementById('resumeBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+
         convertBtn.addEventListener('click', async () => {
             if (!selectedFile) return;
 
             hideError();
             convertBtn.disabled = true;
             progressContainer.classList.add('show');
+            jobControls.style.display = 'block';
+            stopBtn.style.display = 'inline-block';
+            resumeBtn.style.display = 'none';
             resultSection.classList.remove('show');
             progressBar.style.width = '0%';
             statusText.textContent = 'Uploading file...';
@@ -652,62 +679,120 @@
                     throw new Error(uploadResult.error || 'Upload failed');
                 }
 
+                currentJobId = uploadResult.job_id;
                 statusText.textContent = 'Processing with OCR...';
 
-                animateProgress(3000, async () => {
-                    try {
                 const processResponse = await fetch('/process', {
-                            method: 'POST',
-                            body: new URLSearchParams({
-                                engine: engineSelect.value,
-                                language: languageSelect.value,
-                                format: formatSelect.value
-                            })
-                        });
-
-                        const processResult = await processResponse.json();
-
-                        if (!processResponse.ok) {
-                            throw new Error(processResult.error || 'Processing failed');
-                        }
-
-                        progressBar.style.width = '100%';
-                        statusText.textContent = `Completed! Extracted ${processResult.pages} pages.`;
-
-                        textPreview.textContent = processResult.text || 'No text extracted from the file.';
-
-                        // Only show DB Upload button if format is JSON
-                        if (formatSelect.value === 'json') {
-                            uploadDbBtn.style.display = 'block';
-                        } else {
-                            uploadDbBtn.style.display = 'none';
-                        }
-
-                        // Only one download button needed now!
-
-                        setTimeout(() => {
-                            progressContainer.classList.remove('show');
-                            resultSection.classList.add('show');
-                            convertBtn.disabled = false;
-                        }, 500);
-
-                    } catch (error) {
-                        showError(error.message);
-                        progressContainer.classList.remove('show');
-                        convertBtn.disabled = false;
-                    }
+                    method: 'POST',
+                    body: new URLSearchParams({
+                        engine: engineSelect.value,
+                        language: languageSelect.value,
+                        format: formatSelect.value,
+                        page_range: pageRangeInput.value || 'all'
+                    })
                 });
+
+                const processResult = await processResponse.json();
+
+                if (!processResponse.ok) {
+                    throw new Error(processResult.error || 'Processing failed');
+                }
+
+                const jobId = uploadResult.job_id;
+
+                // Poll for progress
+                const pollProgress = setInterval(async () => {
+                    try {
+                        const progressResponse = await fetch(`/progress/${jobId}`);
+                        const progressResult = await progressResponse.json();
+
+                        if (progressResult.status === 'Error') {
+                            clearInterval(pollProgress);
+                            showError(progressResult.error || 'Processing failed');
+                            progressContainer.classList.remove('show');
+                            jobControls.style.display = 'none';
+                            convertBtn.disabled = false;
+                            return;
+                        }
+
+                        if (progressResult.status === 'Cancelled') {
+                            clearInterval(pollProgress);
+                            statusText.textContent = 'Job cancelled.';
+                            setTimeout(() => {
+                                progressContainer.classList.remove('show');
+                                jobControls.style.display = 'none';
+                                convertBtn.disabled = false;
+                            }, 2000);
+                            return;
+                        }
+
+                        progressBar.style.width = progressResult.percentage + '%';
+                        statusText.textContent = progressResult.status;
+
+                        if (progressResult.status === 'Paused') {
+                            stopBtn.style.display = 'none';
+                            resumeBtn.style.display = 'inline-block';
+                        } else if (progressResult.status.startsWith('Processing') || progressResult.status.startsWith('Resuming')) {
+                            stopBtn.style.display = 'inline-block';
+                            resumeBtn.style.display = 'none';
+                        }
+
+                        if (progressResult.percentage === 100 && progressResult.result) {
+                            clearInterval(pollProgress);
+
+                            const finalResult = progressResult.result;
+                            statusText.textContent = `Completed! Extracted ${finalResult.pages} pages.`;
+
+                            textPreview.textContent = finalResult.text || 'No text extracted from the file.';
+
+                            if (formatSelect.value === 'json') {
+                                uploadDbBtn.style.display = 'block';
+                            } else {
+                                uploadDbBtn.style.display = 'none';
+                            }
+
+                            setTimeout(() => {
+                                progressContainer.classList.remove('show');
+                                jobControls.style.display = 'none';
+                                resultSection.classList.add('show');
+                                convertBtn.disabled = false;
+                            }, 500);
+                        }
+                    } catch (error) {
+                        console.error('Error polling progress:', error);
+                    }
+                }, 1000);
+
+                // Control Button Handlers
+                stopBtn.onclick = async () => {
+                    await fetch(`/stop/${jobId}`, { method: 'POST' });
+                };
+
+                resumeBtn.onclick = async () => {
+                    await fetch(`/resume/${jobId}`, { method: 'POST' });
+                };
+
+                cancelBtn.onclick = async () => {
+                    if (confirm('Are you sure you want to cancel this job?')) {
+                        await fetch(`/cancel/${jobId}`, { method: 'POST' });
+                    }
+                };
 
             } catch (error) {
                 showError(error.message);
                 progressContainer.classList.remove('show');
+                jobControls.style.display = 'none';
                 convertBtn.disabled = false;
             }
         });
 
         downloadBtn.addEventListener('click', () => {
             const format = formatSelect.value;
-            window.location.href = `/download/${format}`;
+            let url = `/download/${format}`;
+            if (currentJobId) {
+                url += `?job_id=${currentJobId}`;
+            }
+            window.location.href = url;
         });
 
         uploadDbBtn.addEventListener('click', async () => {

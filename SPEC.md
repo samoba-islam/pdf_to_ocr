@@ -19,10 +19,14 @@
 1. **PDF File Upload**
    - Accept PDF files via web interface
    - Display upload progress
-   - Validate file type (PDF only)
-   - Maximum file size: 50MB
+   - Validate file type (PDF or images)
+   - Maximum file size: 1GB
 
-2. **Language Selection**
+2. **Job Control & Range Selection**
+   - Custom page range support (e.g., "1-5, 8, 11-13")
+   - Stop (Pause), Resume, and Cancel functionality during processing
+
+3. **Language Selection**
    - Support for Bengali (ben), English (eng), or Both
    - Tesseract OCR language packs required
 
@@ -36,6 +40,11 @@
    - Export to plain text (.txt)
    - Export to Word document (.docx)
    - Automatic download after processing
+
+5. **Admin Panel & Maintenance**
+   - Dashboard for managing extracted MCQ data
+   - Settings section for system maintenance
+   - Manual cleanup of Uploads and Outputs folders with disk usage indicators
 
 ### User Interface
 1. **Upload Section**
