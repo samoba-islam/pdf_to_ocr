@@ -69,6 +69,32 @@ app.config['DB_CONFIG'] = {
     'database': 'job'
 }
 
+def get_db_setting(key, default=None):
+    try:
+        conn = mysql.connector.connect(**app.config['DB_CONFIG'])
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute('SELECT `value` FROM settings WHERE `key` = %s', (key,))
+        row = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        if row:
+            return row['value']
+    except:
+        pass
+    return default
+
+# Global error handler to ensure JSON responses for AJAX calls
+@app.errorhandler(Exception)
+def handle_exception(e):
+    # Pass through HTTP errors
+    if hasattr(e, 'code') and isinstance(e.code, int):
+        return jsonify(error=str(e), success=False), e.code
+    # Handle non-HTTP exceptions only for AJAX requests
+    if request.path.startswith('/admin') or request.path in ['/upload', '/process', '/engines', '/pipelines', '/progress']:
+        return jsonify(error=str(e), success=False), 500
+    # Otherwise return the default (which might be an HTML error page)
+    return str(e), 500
+
 # Global dictionary to track job progress
 job_progress = {}
 # Global dictionary to track job controls (threading.Event for pause/resume and cancel flag)
@@ -131,8 +157,13 @@ def cancel_job(job_id):
         return jsonify({'success': True})
     return jsonify({'error': 'Job not found'}), 404
 
-IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'bmp', 'tif', 'tiff', 'webp'}
-ALLOWED_EXTENSIONS = {'pdf', *IMAGE_EXTENSIONS}
+def get_allowed_extensions():
+    ext_str = get_db_setting('ALLOWED_EXTENSIONS', 'pdf,png,jpg,jpeg,bmp,tif,tiff,webp')
+    return {ext.strip().lower() for ext in ext_str.split(',')}
+
+def allowed_file(filename):
+    allowed = get_allowed_extensions()
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
@@ -151,6 +182,95 @@ def init_db():
             name VARCHAR(255),
             email VARCHAR(255) UNIQUE
         )''')
+
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS settings (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            `key` VARCHAR(100) UNIQUE NOT NULL,
+            `value` TEXT,
+            `description` TEXT,
+            `category` VARCHAR(50) DEFAULT 'general'
+        )''')
+
+        # Insert default settings if they don't exist
+        default_settings = [
+            ('OPENAI_COMPAT_BASE_URL', 'http://localhost:8080/v1', 'Base URL for OpenAI-compatible API', 'openai'),
+            ('OPENAI_COMPAT_API_KEY', 'pwd', 'API Key for OpenAI-compatible API', 'openai'),
+            ('OPENAI_COMPAT_MODEL', 'gpt-5.5', 'Primary model name for OpenAI-compatible API', 'openai'),
+            ('OPENAI_COMPAT_TIMEOUT_SECONDS', '240', 'Timeout for OpenAI-compatible API requests (seconds)', 'openai'),
+            ('OPENAI_COMPAT_ENABLE_POSTPROCESS', 'false', 'Enable AI post-processing for local OCR', 'openai'),
+            ('AISTUDIO_TOKEN', 'eabce52d47f2eacb24c9335a1a0e6b195e335efe', 'Token for AI Studio Layout API', 'aistudio'),
+            ('AISTUDIO_API_URL', 'https://c7h8c1o6l62ej1ze.aistudio-app.com/layout-parsing', 'API URL for AI Studio Layout Parsing', 'aistudio'),
+            ('AISTUDIO_TIMEOUT_SECONDS', '600', 'Timeout for AI Studio requests (seconds)', 'aistudio'),
+            ('AISTUDIO_MAX_GEMINI_IMAGES', '80', 'Maximum images to send to Gemini per page', 'aistudio'),
+            ('ANTHROPIC_API_KEY', '', 'API Key for Anthropic Claude models', 'anthropic'),
+            ('ANTHROPIC_BASE_URL', '', 'Base URL for Anthropic-compatible API (leave empty for default)', 'anthropic'),
+            ('ANTHROPIC_MODEL', 'claude-3-5-sonnet-latest', 'Primary model for Anthropic OCR', 'anthropic'),
+            ('ANTHROPIC_TIMEOUT_SECONDS', '240', 'Timeout for Anthropic requests (seconds)', 'anthropic'),
+            ('TESSERACT_PATH', '', 'Custom path to Tesseract executable (leave empty for auto-detect)', 'local_ocr'),
+            ('EASYOCR_GPU', 'true', 'Use GPU for EasyOCR if available (true/false)', 'local_ocr'),
+            ('OCR_DPI', '300', 'DPI for converting PDF pages to images (higher is more accurate but slower)', 'general'),
+            ('OCR_MAX_RETRIES', '3', 'Maximum number of retries for API requests', 'general'),
+            ('MAX_UPLOAD_SIZE_MB', '1024', 'Maximum allowed upload size in Megabytes', 'general'),
+            ('ALLOWED_EXTENSIONS', 'pdf,png,jpg,jpeg,bmp,tif,tiff,webp', 'Comma-separated list of allowed file extensions', 'general'),
+            ('FLASK_SECRET_KEY', 'super-secret-default-key-change-me', 'Secret key for Flask sessions (stay logged in across restarts)', 'general')
+        ]
+
+        for key, val, desc, cat in default_settings:
+            cursor.execute('INSERT IGNORE INTO settings (`key`, `value`, `description`, `category`) VALUES (%s, %s, %s, %s)',
+                         (key, val, desc, cat))
+
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ai_providers (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            type ENUM('openai', 'gemini', 'ollama', 'aistudio', 'local', 'anthropic') NOT NULL,
+            base_url VARCHAR(255),
+            api_key VARCHAR(255),
+            is_active BOOLEAN DEFAULT TRUE
+        )''')
+
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS custom_pipelines (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            ocr_provider_id INT,
+            ocr_model VARCHAR(100),
+            structure_provider_id INT,
+            structure_model VARCHAR(100),
+            is_active BOOLEAN DEFAULT TRUE,
+            FOREIGN KEY (ocr_provider_id) REFERENCES ai_providers(id) ON DELETE SET NULL,
+            FOREIGN KEY (structure_provider_id) REFERENCES ai_providers(id) ON DELETE SET NULL
+        )''')
+
+        # Insert default providers if they don't exist
+        cursor.execute("SELECT COUNT(*) FROM ai_providers")
+        if cursor.fetchone()[0] == 0:
+            default_providers = [
+                ('Local OCR (Tesseract/EasyOCR)', 'local', '', ''),
+                ('AI Studio (Paddle)', 'aistudio', 'https://c7h8c1o6l62ej1ze.aistudio-app.com/layout-parsing', 'eabce52d47f2eacb24c9335a1a0e6b195e335efe'),
+                ('OpenAI API', 'openai', 'https://api.openai.com/v1', ''),
+                ('Gemini API', 'gemini', '', ''),
+                ('Anthropic API', 'anthropic', 'https://api.anthropic.com', ''),
+                ('Ollama (Local)', 'ollama', 'http://localhost:11434/v1', '')
+            ]
+            for name, p_type, url, key in default_providers:
+                cursor.execute('INSERT INTO ai_providers (name, type, base_url, api_key) VALUES (%s, %s, %s, %s)',
+                             (name, p_type, url, key))
+
+        # Insert default engines if they don't exist
+        default_engines = [
+            ('easyocr', 'EasyOCR (Local - Basic OCR)', 'Basic local OCR for English and Bengali.', True, 1),
+            ('tesseract', 'Tesseract (Local - Fast OCR)', 'Fast local OCR using Tesseract.', True, 2),
+            ('openai_compatible', 'OpenAI Compatible (Local API - Vision OCR)', 'Vision-based OCR using an OpenAI-compatible API.', True, 3),
+            ('gemini', 'Gemini (Local Proxy - OCR + Cleanup + Structure)', 'Direct page-to-JSON extraction using Gemini.', True, 4),
+            ('aistudio', 'AI Studio Layout API (Cloud - Layout & Images)', 'Advanced cloud layout parsing and image extraction.', True, 5),
+            ('anthropic', 'Anthropic Claude (Cloud - Vision OCR & Structure)', 'Vision-based OCR using Anthropic Claude models.', True, 6),
+        ]
+
+        for name, display, desc, active, order in default_engines:
+            cursor.execute('INSERT IGNORE INTO processing_engines (name, display_name, description, is_active, sort_order) VALUES (%s, %s, %s, %s, %s)',
+                         (name, display, desc, active, order))
 
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS exams (
@@ -226,19 +346,285 @@ def cleanup_temp_files():
                 except Exception as e:
                     print(f"Failed to cleanup {item_path}: {e}")
 
+def get_provider_details(provider_id):
+    if not provider_id:
+        return None
+    try:
+        conn = mysql.connector.connect(**app.config['DB_CONFIG'])
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute('SELECT * FROM ai_providers WHERE id = %s', (provider_id,))
+        provider = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        return provider
+    except:
+        return None
+
+def run_custom_pipeline(file_path, pipeline_id, output_format, job_id=None, page_range=None, language='english'):
+    config = get_config()
+    def update_progress(percentage, status):
+        if job_id:
+            job_progress[job_id] = {"status": status, "percentage": percentage}
+
+    def check_controls():
+        if job_id and job_id in job_controls:
+            if job_controls[job_id].get('cancel_flag'):
+                raise InterruptedError("Job cancelled by user")
+            job_controls[job_id]['pause_event'].wait()
+
+    # 1. Fetch Pipeline Details
+    try:
+        conn = mysql.connector.connect(**app.config['DB_CONFIG'])
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute('SELECT * FROM custom_pipelines WHERE id = %s', (pipeline_id,))
+        pipeline = cursor.fetchone()
+        cursor.close()
+        conn.close()
+    except Error as e:
+        raise RuntimeError(f"Database error: {e}")
+
+    if not pipeline:
+        raise ValueError("Pipeline not found")
+
+    ocr_provider = get_provider_details(pipeline['ocr_provider_id'])
+    struct_provider = get_provider_details(pipeline['structure_provider_id'])
+
+    # 2. Convert PDF to Images
+    total_pdf_pages = 0
+    if is_pdf_file(file_path):
+        doc = fitz.open(file_path)
+        total_pdf_pages = len(doc)
+        doc.close()
+
+    page_indices = parse_page_range(page_range, total_pdf_pages) if is_pdf_file(file_path) else None
+    page_images = get_document_page_images(file_path, dpi=config['OCR_DPI'], page_indices=page_indices)
+    total_pages = len(page_images)
+
+    extracted_pages = []
+
+    # 3. Process each page
+    for idx, (page_num, image) in enumerate(page_images):
+        check_controls()
+        update_progress(5 + int((idx / total_pages) * 45), f"OCR Processing page {page_num} of {total_pages}...")
+
+        # Step 1: OCR
+        page_text = perform_ocr_with_provider(ocr_provider, pipeline['ocr_model'], image, page_num, language)
+
+        extracted_pages.append({
+            "page": page_num,
+            "text": page_text
+        })
+
+    full_text = "\n\n".join(p['text'] for p in extracted_pages)
+
+    # 4. Step 2: Structuring (If output format is JSON)
+    if output_format == 'json':
+        update_progress(60, "Structuring text into JSON dataset...")
+        dataset = structure_text_with_provider(struct_provider, pipeline['structure_model'], full_text)
+
+        output_path = os.path.join(app.config['OUTPUT_FOLDER'], f'pipeline_{job_id or uuid.uuid4().hex}.json')
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(dataset, f, ensure_ascii=False, indent=2)
+        preview_text = json.dumps(dataset, ensure_ascii=False, indent=2)
+    else:
+        # Standard text/docx output
+        if output_format == 'txt':
+            output_path = os.path.join(app.config['OUTPUT_FOLDER'], f'pipeline_{job_id or uuid.uuid4().hex}.txt')
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(full_text)
+            preview_text = full_text
+        elif output_format == 'docx':
+            from docx import Document
+            output_path = os.path.join(app.config['OUTPUT_FOLDER'], f'pipeline_{job_id or uuid.uuid4().hex}.docx')
+            doc = Document()
+            doc.add_heading('Pipeline Extracted Text', 0)
+            for page_data in extracted_pages:
+                doc.add_heading(f'Page {page_data["page"]}', level=1)
+                for line in page_data["text"].splitlines():
+                    doc.add_paragraph(line)
+            doc.save(output_path)
+            preview_text = full_text
+        else:
+            raise ValueError("Unsupported format")
+
+    update_progress(100, "Pipeline Completed!")
+    return {
+        'text': preview_text,
+        'pages': total_pages,
+        'output_path': output_path
+    }
+
+def perform_ocr_with_provider(provider, model, image, page_num, language='english'):
+    if not provider:
+        return "[Error: No OCR Provider selected]"
+
+    p_type = provider['type']
+
+    if p_type == 'local':
+        # Default to EasyOCR if model is not specified or 'easyocr'
+        if not model or 'easyocr' in model.lower():
+            import numpy as np
+            img_np = np.array(image)
+            langs = get_easyocr_langs(language)
+            reader = get_reader(langs)
+            result = reader.readtext(img_np, detail=1)
+            return reconstruct_layout(result)
+        else:
+            # Fallback to Tesseract
+            import pytesseract
+            configure_tesseract_command(pytesseract)
+            lang_map = {'english': 'eng', 'bengali': 'ben', 'both': 'eng+ben'}
+            tess_lang = lang_map.get(language, 'eng')
+            return pytesseract.image_to_string(image, lang=tess_lang)
+
+    elif p_type == 'aistudio':
+        # AI Studio uses its own specific logic
+        # For simplicity in custom pipeline, we'll use a simplified version of the existing logic
+        # but this would usually be its own flow.
+        return extract_clean_text_with_gemini(image, page_num, model or 'gemini-3-flash')
+
+    elif p_type in ['openai', 'ollama', 'gemini', 'anthropic']:
+        # Generic Vision API call
+        data_url = prepare_openai_compatible_image_data_url(image)
+        messages = [{
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Extract all text from this image. Return only the extracted text."},
+                {"type": "image_url", "image_url": {"url": data_url}}
+            ]
+        }]
+
+        if p_type == 'openai':
+            response = call_custom_openai_api(provider['base_url'], provider['api_key'], model or 'gpt-4o', messages)
+            return response
+        elif p_type == 'anthropic':
+            return call_anthropic_api(model or 'claude-3-5-sonnet-latest', messages)
+        elif p_type == 'gemini':
+            # Use the existing gemini logic but with the provider key if available
+            return extract_clean_text_with_gemini(image, page_num, model or 'gemini-3-flash')
+        elif p_type == 'ollama':
+            return call_ollama_vision(provider['base_url'], model or 'llava', data_url)
+
+    return f"[Error: Provider type {p_type} not implemented for OCR]"
+
+def structure_text_with_provider(provider, model, text):
+    if not provider:
+        return {"mcqs": [], "error": "No structuring provider"}
+
+    messages = [
+        {"role": "system", "content": MCQ_DATASET_SYSTEM_PROMPT},
+        {"role": "user", "content": f"Convert the following OCR text into JSON:\n\n{text}"}
+    ]
+
+    p_type = provider['type']
+
+    try:
+        if p_type == 'openai':
+            content = call_custom_openai_api(provider['base_url'], provider['api_key'], model or 'gpt-4o', messages)
+        elif p_type == 'anthropic':
+            content = call_anthropic_api(model or 'claude-3-5-sonnet-latest', messages)
+        elif p_type == 'gemini':
+            # Simplified: using existing logic
+            caps = get_openai_compat_capabilities()
+            content = get_openai_compatible_message_text(call_openai_compatible_chat(model or caps['text_model'], messages))
+        elif p_type == 'ollama':
+            content = call_ollama_chat(provider['base_url'], model or 'llama3', messages)
+        else:
+            # Fallback to default Gemini structuring
+            return transform_ocr_text_to_mcq_dataset(text, get_config()['OPENAI_COMPAT_MODEL'])
+
+        return normalize_mcq_dataset(parse_json_llm_response(content))
+    except Exception as e:
+        return {"mcqs": [], "error": str(e)}
+
+def call_custom_openai_api(base_url, api_key, model, messages):
+    from openai import OpenAI
+    client = OpenAI(base_url=base_url or "https://api.openai.com/v1", api_key=api_key or "sk-...")
+    response = client.chat.completions.create(
+        model=model,
+        messages=messages,
+        temperature=0
+    )
+    return response.choices[0].message.content
+
+def call_ollama_chat(base_url, model, messages):
+    # Standardize Ollama URL to point to /api if not specified
+    if not base_url:
+        base_url = "http://localhost:11434"
+
+    url = f"{base_url.rstrip('/')}/api/chat"
+    if '/v1' in base_url:
+        # If user provided a v1 URL, they probably want OpenAI compatibility
+        # We can either handle it here or tell them to use the 'openai' provider type
+        url = f"{base_url.rstrip('/')}/chat/completions"
+        # ... actually, better to use native Ollama API for 'ollama' type
+        url = base_url.replace('/v1', '/api/chat')
+
+    payload = {
+        "model": model or "llama3",
+        "messages": messages,
+        "stream": False,
+        "options": {"temperature": 0}
+    }
+    response = requests.post(url, json=payload, timeout=120)
+    response.raise_for_status()
+    return response.json()['message']['content']
+
+def call_ollama_vision(base_url, model, data_url):
+    if not base_url:
+        base_url = "http://localhost:11434"
+
+    url = f"{base_url.rstrip('/')}/api/generate"
+    if '/v1' in base_url:
+        url = base_url.replace('/v1', '/api/generate')
+
+    base64_data = data_url.split(',')[1]
+    payload = {
+        "model": model or "llava",
+        "prompt": "Extract all text from this image. Return only the text.",
+        "images": [base64_data],
+        "stream": False
+    }
+    response = requests.post(url, json=payload, timeout=120)
+    response.raise_for_status()
+    return response.json()['response']
+
+def get_config():
+    return {
+        'OPENAI_COMPAT_BASE_URL': get_db_setting('OPENAI_COMPAT_BASE_URL', os.environ.get("OPENAI_COMPAT_BASE_URL", "http://localhost:8045/v1")),
+        'OPENAI_COMPAT_API_KEY': get_db_setting('OPENAI_COMPAT_API_KEY', os.environ.get("OPENAI_COMPAT_API_KEY", "sk-28d07728e1aa4ac5adb0d1fc09b7d743")),
+        'OPENAI_COMPAT_MODEL': get_db_setting('OPENAI_COMPAT_MODEL', os.environ.get("OPENAI_COMPAT_MODEL", "gemini-3-flash")),
+        'OPENAI_COMPAT_TIMEOUT_SECONDS': float(get_db_setting('OPENAI_COMPAT_TIMEOUT_SECONDS', "240")),
+        'AISTUDIO_TOKEN': get_db_setting('AISTUDIO_TOKEN', "eabce52d47f2eacb24c9335a1a0e6b195e335efe"),
+        'AISTUDIO_API_URL': get_db_setting('AISTUDIO_API_URL', "https://c7h8c1o6l62ej1ze.aistudio-app.com/layout-parsing"),
+        'AISTUDIO_TIMEOUT_SECONDS': float(get_db_setting('AISTUDIO_TIMEOUT_SECONDS', "600")),
+        'AISTUDIO_MAX_GEMINI_IMAGES': int(get_db_setting('AISTUDIO_MAX_GEMINI_IMAGES', "80")),
+        'OPENAI_COMPAT_ENABLE_POSTPROCESS': get_db_setting('OPENAI_COMPAT_ENABLE_POSTPROCESS', "false").lower() == "true",
+        'TESSERACT_PATH': get_db_setting('TESSERACT_PATH', ""),
+        'EASYOCR_GPU': get_db_setting('EASYOCR_GPU', "true").lower() == "true",
+        'OCR_DPI': int(get_db_setting('OCR_DPI', "300")),
+        'OCR_MAX_RETRIES': int(get_db_setting('OCR_MAX_RETRIES', "3")),
+        'ANTHROPIC_API_KEY': get_db_setting('ANTHROPIC_API_KEY', ""),
+        'ANTHROPIC_BASE_URL': get_db_setting('ANTHROPIC_BASE_URL', ""),
+        'ANTHROPIC_MODEL': get_db_setting('ANTHROPIC_MODEL', "claude-3-5-sonnet-latest"),
+        'ANTHROPIC_TIMEOUT_SECONDS': float(get_db_setting('ANTHROPIC_TIMEOUT_SECONDS', "240"))
+    }
+
+# Original global variables (will now be accessed via get_config() where needed or updated periodically)
+# For better performance, we can wrap these in a function or a class.
+
+OPENAI_COMPAT_MODEL_FALLBACKS = os.environ.get("OPENAI_COMPAT_MODEL_FALLBACKS", "")
+OPENAI_COMPAT_TIMEOUT_SECONDS = float(os.environ.get("OPENAI_COMPAT_TIMEOUT_SECONDS", "240"))
+OPENAI_COMPAT_PROBE_TIMEOUT_SECONDS = float(os.environ.get("OPENAI_COMPAT_PROBE_TIMEOUT_SECONDS", "12"))
+
 # Initialize DB and cleanup on startup
 init_db()
 cleanup_temp_files()
 
-OPENAI_COMPAT_BASE_URL = os.environ.get("OPENAI_COMPAT_BASE_URL", "http://localhost:8045/v1")
-OPENAI_COMPAT_API_KEY = os.environ.get("OPENAI_COMPAT_API_KEY", "sk-28d07728e1aa4ac5adb0d1fc09b7d743")
-OPENAI_COMPAT_MODEL = os.environ.get("OPENAI_COMPAT_MODEL", "gemini-3-flash")
-OPENAI_COMPAT_MODEL_FALLBACKS = os.environ.get("OPENAI_COMPAT_MODEL_FALLBACKS", "")
-OPENAI_COMPAT_TIMEOUT_SECONDS = float(os.environ.get("OPENAI_COMPAT_TIMEOUT_SECONDS", "240"))
-OPENAI_COMPAT_PROBE_TIMEOUT_SECONDS = float(os.environ.get("OPENAI_COMPAT_PROBE_TIMEOUT_SECONDS", "12"))
-OPENAI_COMPAT_ENABLE_POSTPROCESS = os.environ.get("OPENAI_COMPAT_ENABLE_POSTPROCESS", "false").lower() == "true"
-AISTUDIO_TIMEOUT_SECONDS = float(os.environ.get("AISTUDIO_TIMEOUT_SECONDS", "600"))
-AISTUDIO_MAX_GEMINI_IMAGES = int(os.environ.get("AISTUDIO_MAX_GEMINI_IMAGES", "80"))
+# Set persistent secret key from DB
+persistent_key = get_db_setting('FLASK_SECRET_KEY')
+if persistent_key:
+    app.secret_key = persistent_key.encode('utf-8')
 
 MCQ_DATASET_SYSTEM_PROMPT = """
 You are an AI data processing agent designed to convert OCR-extracted text from Bangla, English, or mixed-language government job preparation books into structured, high-quality datasets.
@@ -305,8 +691,10 @@ The JSON object must have this exact top-level structure:
 
 
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    allowed = get_allowed_extensions()
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed
 
+IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'bmp', 'tif', 'tiff', 'webp'}
 
 def get_file_extension(path):
     return os.path.splitext(path)[1].lower().lstrip('.')
@@ -338,14 +726,16 @@ OpenAICompatModelListFailed = False
 
 def get_reader(langs):
     lang_key = tuple(sorted(langs))
+    config = get_config()
     if lang_key not in OcrReaders:
         # Initialize reader (this downloads models if first time)
-        OcrReaders[lang_key] = easyocr.Reader(list(langs))
+        OcrReaders[lang_key] = easyocr.Reader(list(langs), gpu=config['EASYOCR_GPU'])
     return OcrReaders[lang_key]
 
 
 def get_openai_compat_client():
     global OpenAICompatClient
+    config = get_config()
 
     if OpenAICompatClient is None:
         try:
@@ -357,9 +747,9 @@ def get_openai_compat_client():
             ) from exc
 
         OpenAICompatClient = OpenAI(
-            base_url=OPENAI_COMPAT_BASE_URL,
-            api_key=OPENAI_COMPAT_API_KEY,
-            timeout=OPENAI_COMPAT_TIMEOUT_SECONDS,
+            base_url=config['OPENAI_COMPAT_BASE_URL'],
+            api_key=config['OPENAI_COMPAT_API_KEY'],
+            timeout=config['OPENAI_COMPAT_TIMEOUT_SECONDS'],
             max_retries=0,
         )
 
@@ -368,16 +758,18 @@ def get_openai_compat_client():
 
 def call_openai_compatible_chat(model, messages, temperature=0, timeout=None):
     client = get_openai_compat_client()
+    config = get_config()
     return client.chat.completions.create(
         model=model,
         messages=messages,
         temperature=temperature,
-        timeout=timeout or OPENAI_COMPAT_TIMEOUT_SECONDS,
+        timeout=timeout or config['OPENAI_COMPAT_TIMEOUT_SECONDS'],
     )
 
 
 def list_openai_compatible_models():
     global OpenAICompatModelListFailed
+    config = get_config()
 
     client = get_openai_compat_client()
 
@@ -387,16 +779,17 @@ def list_openai_compatible_models():
         return [model.id for model in response.data if getattr(model, "id", None)]
     except Exception as exc:
         OpenAICompatModelListFailed = True
-        OpenAICompatProbeErrors.append(f"Could not list models from {OPENAI_COMPAT_BASE_URL}: {exc}")
+        OpenAICompatProbeErrors.append(f"Could not list models from {config['OPENAI_COMPAT_BASE_URL']}: {exc}")
         return []
 
 
 def get_openai_compatible_model_candidates():
     discovered = list_openai_compatible_models()
     preferred = []
+    config = get_config()
 
-    if OPENAI_COMPAT_MODEL:
-        preferred.append(OPENAI_COMPAT_MODEL)
+    if config['OPENAI_COMPAT_MODEL']:
+        preferred.append(config['OPENAI_COMPAT_MODEL'])
 
     preferred.extend(
         model.strip()
@@ -496,6 +889,7 @@ def supports_openai_vision_model(model):
 
 def get_openai_compat_capabilities():
     global OpenAICompatCapabilities
+    config = get_config()
 
     if OpenAICompatCapabilities is not None:
         return OpenAICompatCapabilities
@@ -511,11 +905,11 @@ def get_openai_compat_capabilities():
 
     if not text_model:
         details = " ".join(OpenAICompatProbeErrors[-4:]).strip()
-        configured = OPENAI_COMPAT_MODEL or "(not set)"
+        configured = config['OPENAI_COMPAT_MODEL'] or "(not set)"
         suffix = f" Details: {details}" if details else ""
         raise RuntimeError(
             "No working text model was found on the OpenAI-compatible endpoint. "
-            f"Base URL: {OPENAI_COMPAT_BASE_URL}. Configured model: {configured}. "
+            f"Base URL: {config['OPENAI_COMPAT_BASE_URL']}. Configured model: {configured}. "
             "Start the proxy service or set OPENAI_COMPAT_BASE_URL / OPENAI_COMPAT_MODEL "
             "to a model that supports chat completions."
             f"{suffix}"
@@ -695,7 +1089,7 @@ def transform_page_image_to_mcq_dataset_with_gemini(image, page_number, model, p
 
     message = get_openai_compatible_message_text(response)
     try:
-        parsed = json.loads(strip_json_code_fence(message))
+        parsed = parse_json_llm_response(message)
     except json.JSONDecodeError as exc:
         raise ValueError(f"Gemini structured extraction returned invalid JSON on page {page_number}.") from exc
 
@@ -780,7 +1174,7 @@ def extract_missing_mcqs_with_gemini(image, page_number, page_text, existing_dat
 
     message = get_openai_compatible_message_text(response)
     try:
-        parsed = json.loads(strip_json_code_fence(message))
+        parsed = parse_json_llm_response(message)
     except json.JSONDecodeError:
         return {"mcqs": [], "contexts": []}
 
@@ -882,10 +1276,50 @@ def cleanup_ocr_text_with_openai_compatible(raw_text, model):
 
 def strip_json_code_fence(content):
     text = (content or "").strip()
-    if text.startswith("```"):
-        text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.IGNORECASE)
-        text = re.sub(r"\s*```$", "", text)
-    return text.strip()
+    
+    # Try to find a JSON block between triple backticks
+    import re
+    match = re.search(r'```(?:json)?\s*(.*?)\s*```', text, flags=re.IGNORECASE | re.DOTALL)
+    if match:
+        return match.group(1).strip()
+        
+    # If no backticks, try to find the first '{' and the last '}'
+    start = text.find('{')
+    end = text.rfind('}')
+    if start != -1 and end != -1 and end > start:
+        return text[start:end+1].strip()
+        
+    # If all else fails, return the original text
+    return text
+
+
+
+def parse_json_llm_response(message):
+    import ast
+    import re
+    import json
+    import logging
+    text = strip_json_code_fence(message)
+    try:
+        return json.loads(text)
+    except Exception as e:
+        # Fallback 1: Fix trailing commas
+        try:
+            text_no_trailing = re.sub(r',\s*([\]}])', r'\1', text)
+            return json.loads(text_no_trailing)
+        except Exception:
+            pass
+            
+        # Fallback 2: Try ast.literal_eval in case LLM output a Python dictionary with single quotes
+        try:
+            if text.startswith('{') or text.startswith('['):
+                return ast.literal_eval(text)
+        except Exception:
+            pass
+            
+        # Fallback 3: Return empty dataset instead of crashing
+        logging.warning(f"Failed to parse LLM JSON. Returning empty dataset. Raw text: {text[:200]}...")
+        return {"mcqs": [], "contexts": []}
 
 
 def extract_option_number_from_text(text, options):
@@ -1118,7 +1552,7 @@ def transform_ocr_text_to_mcq_dataset(raw_text, model):
     message = get_openai_compatible_message_text(response)
 
     try:
-        parsed = json.loads(strip_json_code_fence(message))
+        parsed = parse_json_llm_response(message)
     except json.JSONDecodeError as exc:
         raise ValueError("Structured MCQ extraction returned invalid JSON.") from exc
 
@@ -1189,7 +1623,7 @@ def build_source_page_image_assets(file_path):
     return assets
 
 
-def transform_aistudio_layout_to_mcq_dataset(markdown_text, image_assets, model):
+def transform_aistudio_layout_to_mcq_dataset(markdown_text, image_assets, model, max_images=80):
     if not markdown_text or not markdown_text.strip():
         return {"mcqs": [], "contexts": []}
 
@@ -1224,7 +1658,7 @@ def transform_aistudio_layout_to_mcq_dataset(markdown_text, image_assets, model)
         key=lambda asset: 0 if asset.get("kind") == "full_page" else 1
     )
 
-    for asset in ordered_assets[:AISTUDIO_MAX_GEMINI_IMAGES]:
+    for asset in ordered_assets[:max_images]:
         data_url = asset.get("data_url")
         image_id = asset.get("id")
         if not data_url or not image_id:
@@ -1244,14 +1678,14 @@ def transform_aistudio_layout_to_mcq_dataset(markdown_text, image_assets, model)
     message = get_openai_compatible_message_text(response)
 
     try:
-        parsed = json.loads(strip_json_code_fence(message))
+        parsed = parse_json_llm_response(message)
     except json.JSONDecodeError as exc:
         raise ValueError("Structured MCQ extraction returned invalid JSON.") from exc
 
     return normalize_mcq_dataset(parsed, image_lookup=image_lookup)
 
 
-def repair_aistudio_mcq_with_page_image(mcq, page_text, page_assets, model):
+def repair_aistudio_mcq_with_page_image(mcq, page_text, page_assets, model, max_images=80):
     if not mcq or not page_assets:
         return mcq
 
@@ -1288,7 +1722,7 @@ def repair_aistudio_mcq_with_page_image(mcq, page_text, page_assets, model):
         page_assets,
         key=lambda asset: 0 if asset.get("kind") == "full_page" else 1
     )
-    for asset in ordered_assets[:AISTUDIO_MAX_GEMINI_IMAGES]:
+    for asset in ordered_assets[:max_images]:
         data_url = asset.get("data_url")
         image_id = asset.get("id")
         if not data_url or not image_id:
@@ -1307,7 +1741,7 @@ def repair_aistudio_mcq_with_page_image(mcq, page_text, page_assets, model):
 
     message = get_openai_compatible_message_text(response)
     try:
-        parsed = json.loads(strip_json_code_fence(message))
+        parsed = parse_json_llm_response(message)
     except json.JSONDecodeError:
         return mcq
 
@@ -1353,7 +1787,265 @@ def merge_mcq_datasets(datasets):
     }
 
 
+
+# ==========================================
+# Anthropic Claude Compatibility Layer
+# ==========================================
+
+def call_anthropic_api(model, messages, temperature=0, timeout=None):
+    import anthropic
+    config = get_config()
+    api_key = config.get('ANTHROPIC_API_KEY', '')
+    base_url = config.get('ANTHROPIC_BASE_URL', '')
+    if not api_key:
+        raise ValueError("Anthropic API key not configured. Set ANTHROPIC_API_KEY in settings.")
+
+    client_kwargs = {
+        "api_key": api_key,
+        "timeout": timeout or float(config.get('ANTHROPIC_TIMEOUT_SECONDS', 240))
+    }
+    if base_url:
+        client_kwargs["base_url"] = base_url
+
+    client = anthropic.Anthropic(**client_kwargs)
+
+    system_prompt = ""
+    anthropic_messages = []
+
+    for msg in messages:
+        if msg['role'] == 'system':
+            system_prompt += msg['content'] + "\n"
+        elif msg['role'] in ['user', 'assistant']:
+            if isinstance(msg['content'], list):
+                new_content = []
+                for item in msg['content']:
+                    if item['type'] == 'text':
+                        new_content.append({"type": "text", "text": item['text']})
+                    elif item['type'] == 'image_url':
+                        url = item['image_url']['url']
+                        media_type, base64_data = url.split(";base64,")
+                        media_type = media_type.replace("data:", "")
+                        new_content.append({
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": media_type,
+                                "data": base64_data
+                            }
+                        })
+                anthropic_messages.append({"role": msg['role'], "content": new_content})
+            else:
+                anthropic_messages.append({"role": msg['role'], "content": msg['content']})
+
+    response = client.messages.create(
+        model=model or "claude-3-5-sonnet-latest",
+        system=system_prompt.strip() if system_prompt else anthropic.NOT_GIVEN,
+        messages=anthropic_messages,
+        max_tokens=4096,
+        temperature=temperature
+    )
+    
+    text_parts = []
+    for block in response.content:
+        if hasattr(block, 'text') and block.text:
+            text_parts.append(block.text)
+        elif hasattr(block, 'thinking') and block.thinking:
+            text_parts.append(block.thinking)
+            
+    result = "".join(text_parts).strip()
+    if not result:
+        # Prevent json.loads expecting value error by throwing a clear runtime error
+        raw_content = getattr(response, 'content', 'No content')
+        raise RuntimeError(f"Anthropic API returned an empty text response. Raw blocks: {raw_content}")
+    return result
+
+def extract_clean_text_with_anthropic(image, page_number, model):
+    data_url = prepare_openai_compatible_image_data_url(image)
+
+    message = call_anthropic_api(
+        model,
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            "OCR this document page and clean the result. Preserve Bangla and English exactly. "
+                            "Keep question numbers, options, formulas, answer markers such as 'উ. ক', and explanations. "
+                            "Do not summarize. Return only cleaned page text."
+                        ),
+                    },
+                    {"type": "image_url", "image_url": {"url": data_url}},
+                ],
+            }
+        ],
+        temperature=0,
+    )
+
+    if message:
+        return message
+    raise RuntimeError(f"No text returned by Anthropic engine for page {page_number}.")
+
+def transform_page_image_to_mcq_dataset_with_anthropic(image, page_number, model, page_text=None):
+    data_url = prepare_openai_compatible_image_data_url(image)
+
+    message = call_anthropic_api(
+        model,
+        messages=[
+            {"role": "system", "content": MCQ_DATASET_SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            f"OCR, clean, and structure all complete MCQs visible on page {page_number}. "
+                            "Use both the cleaned OCR text below and the page image directly for OCR, options, formulas, "
+                            "answer markers, and explanations. "
+                            "Do not omit visible numbered questions. Right-side printed markers like 'উ. ক', 'উ. খ', "
+                            "'উ: গ', 'উত্তর: ঘ' usually denote the correct answer option.\n\n"
+                            f"=== Cleaned OCR Text (Page {page_number}) ===\n{page_text or 'No text provided.'}"
+                        ),
+                    },
+                    {"type": "image_url", "image_url": {"url": data_url}},
+                ],
+            }
+        ],
+        temperature=0,
+    )
+
+    return normalize_mcq_dataset(parse_json_llm_response(message))
+
+def extract_missing_mcqs_with_anthropic(image, page_number, page_text, existing_dataset, model):
+    data_url = prepare_openai_compatible_image_data_url(image)
+    existing_mcqs_json = json.dumps(existing_dataset.get("mcqs", []), ensure_ascii=False, indent=2)
+
+    message = call_anthropic_api(
+        model,
+        messages=[
+            {"role": "system", "content": MCQ_DATASET_SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            f"You previously extracted MCQs from page {page_number}, but some are missing. "
+                            "Look at the page image and the extracted text again. "
+                            f"These are the MCQs you already found:\n```json\n{existing_mcqs_json}\n```\n\n"
+                            "Extract ONLY the MCQs that are present in the image/text but MISSING from the JSON above. "
+                            "Do not repeat already extracted MCQs. "
+                            f"=== Cleaned OCR Text (Page {page_number}) ===\n{page_text or 'No text provided.'}"
+                        ),
+                    },
+                    {"type": "image_url", "image_url": {"url": data_url}},
+                ],
+            }
+        ],
+        temperature=0,
+    )
+
+    return normalize_mcq_dataset(parse_json_llm_response(message))
+
+def process_with_anthropic(file_path, output_format, job_id=None, page_range=None):
+    config = get_config()
+    def update_progress(percentage, status):
+        if job_id:
+            job_progress[job_id] = {"status": status, "percentage": percentage}
+
+    def check_controls():
+        if job_id and job_id in job_controls:
+            if job_controls[job_id].get('cancel_flag'):
+                raise InterruptedError("Job cancelled by user")
+            job_controls[job_id]['pause_event'].wait()
+
+    update_progress(5, "Initializing Anthropic engine...")
+    model = config.get('ANTHROPIC_MODEL', 'claude-3-5-sonnet-latest')
+
+    total_pdf_pages = 0
+    if is_pdf_file(file_path):
+        doc = fitz.open(file_path)
+        total_pdf_pages = len(doc)
+        doc.close()
+
+    page_indices = parse_page_range(page_range, total_pdf_pages) if is_pdf_file(file_path) else None
+    page_images = get_document_page_images(file_path, dpi=int(config.get('OCR_DPI', 300)), page_indices=page_indices)
+    total_pages = len(page_images)
+
+    if output_format == "json":
+        page_datasets = []
+        for idx, (page_number, image) in enumerate(page_images):
+            check_controls()
+            update_progress(
+                5 + int((idx / total_pages) * 90),
+                f"Processing page {page_number} of {total_pages}..."
+            )
+            page_text = extract_clean_text_with_anthropic(image, page_number, model)
+            page_dataset = transform_page_image_to_mcq_dataset_with_anthropic(
+                image, page_number, model, page_text=page_text
+            )
+            expected_count = get_longest_consecutive_question_count(page_text)
+            if expected_count and len(page_dataset.get("mcqs", [])) < expected_count:
+                update_progress(
+                    5 + int((idx / total_pages) * 90) + 2,
+                    f"Repairing page {page_number} (found {len(page_dataset.get('mcqs', []))}/{expected_count})..."
+                )
+                missing_dataset = extract_missing_mcqs_with_anthropic(
+                    image, page_number, page_text, page_dataset, model
+                )
+                page_dataset = merge_mcq_datasets([page_dataset, missing_dataset])
+            page_datasets.append(page_dataset)
+
+        dataset = merge_mcq_datasets(page_datasets)
+        output_path = os.path.join(app.config['OUTPUT_FOLDER'], f'anthropic_{job_id or uuid.uuid4().hex}.json')
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(dataset, f, ensure_ascii=False, indent=2)
+        preview_text = json.dumps(dataset, ensure_ascii=False, indent=2)
+    else:
+        extracted_text = []
+        for idx, (page_number, image) in enumerate(page_images):
+            update_progress(
+                5 + int((idx / total_pages) * 90),
+                f"Processing page {page_number} of {total_pages}..."
+            )
+            text = extract_clean_text_with_anthropic(image, page_number, model)
+            extracted_text.append({
+                "page": page_number,
+                "text": text or "",
+            })
+
+        full_text = "\n\n".join(page["text"] for page in extracted_text)
+
+        if output_format == "txt":
+            output_path = os.path.join(app.config['OUTPUT_FOLDER'], f'anthropic_{job_id or uuid.uuid4().hex}.txt')
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(full_text)
+            preview_text = full_text
+        elif output_format == "docx":
+            from docx import Document
+            output_path = os.path.join(app.config['OUTPUT_FOLDER'], f'anthropic_{job_id or uuid.uuid4().hex}.docx')
+            doc = Document()
+            doc.add_heading('Anthropic Extracted Text', 0)
+            for page_data in extracted_text:
+                doc.add_heading(f'Page {page_data["page"]}', level=1)
+                for line_text in page_data["text"].splitlines():
+                    doc.add_paragraph(line_text)
+            doc.save(output_path)
+            preview_text = full_text
+        else:
+            raise ValueError("Anthropic engine supports TXT, DOCX, and JSON output formats.")
+
+    update_progress(100, "Done!")
+    return {
+        'text': preview_text,
+        'pages': total_pages,
+        'output_path': output_path
+    }
+
+
 def process_with_gemini(file_path, output_format, job_id=None, page_range=None):
+    config = get_config()
     def update_progress(percentage, status):
         if job_id:
             job_progress[job_id] = {"status": status, "percentage": percentage}
@@ -1382,7 +2074,7 @@ def process_with_gemini(file_path, output_format, job_id=None, page_range=None):
         doc.close()
 
     page_indices = parse_page_range(page_range, total_pdf_pages) if is_pdf_file(file_path) else None
-    page_images = get_document_page_images(file_path, dpi=200, page_indices=page_indices)
+    page_images = get_document_page_images(file_path, dpi=config['OCR_DPI'], page_indices=page_indices)
     total_pages = len(page_images)
 
     if output_format == "json":
@@ -1463,6 +2155,12 @@ def process_with_gemini(file_path, output_format, job_id=None, page_range=None):
     }
 
 def configure_tesseract_command(pytesseract_module):
+    config = get_config()
+    custom_path = config.get('TESSERACT_PATH')
+    if custom_path and os.path.exists(custom_path):
+        pytesseract_module.pytesseract.tesseract_cmd = custom_path
+        return custom_path
+
     # Use PATH first; if not found, try common Windows install locations.
     tesseract_on_path = shutil.which("tesseract")
     if tesseract_on_path:
@@ -1574,8 +2272,9 @@ def create_positioned_docx_from_aistudio(layout_results, output_path):
 
 
 def process_with_aistudio(file_path, output_format, job_id=None, page_range=None):
-    API_URL = "https://c7h8c1o6l62ej1ze.aistudio-app.com/layout-parsing"
-    TOKEN = "eabce52d47f2eacb24c9335a1a0e6b195e335efe"
+    config = get_config()
+    API_URL = config['AISTUDIO_API_URL']
+    TOKEN = config['AISTUDIO_TOKEN']
 
     def update_progress(percentage, status):
         if job_id:
@@ -1639,10 +2338,10 @@ def process_with_aistudio(file_path, output_format, job_id=None, page_range=None
             }
 
             # Use a smaller timeout per page, but retry if needed
-            max_retries = 3
+            max_retries = config['OCR_MAX_RETRIES']
             for attempt in range(max_retries):
                 try:
-                    response = requests.post(API_URL, json=payload, headers=headers, timeout=AISTUDIO_TIMEOUT_SECONDS)
+                    response = requests.post(API_URL, json=payload, headers=headers, timeout=config['AISTUDIO_TIMEOUT_SECONDS'])
                     if response.status_code == 200:
                         page_result = response.json().get("result", {})
                         all_layout_results.extend(page_result.get("layoutParsingResults", []))
@@ -1734,7 +2433,7 @@ def process_with_aistudio(file_path, output_format, job_id=None, page_range=None
                     page_assets_for_model = page_payload.get("assets") or []
                     if not page_text.strip():
                         continue
-                    page_dataset = transform_aistudio_layout_to_mcq_dataset(page_text, page_assets_for_model, model)
+                    page_dataset = transform_aistudio_layout_to_mcq_dataset(page_text, page_assets_for_model, model, max_images=config['AISTUDIO_MAX_GEMINI_IMAGES'])
                     repaired_mcqs = []
                     for mcq in page_dataset.get("mcqs", []):
                         if mcq.get("answer") is None:
@@ -1743,6 +2442,7 @@ def process_with_aistudio(file_path, output_format, job_id=None, page_range=None
                                 page_text,
                                 page_assets_for_model,
                                 model,
+                                max_images=config['AISTUDIO_MAX_GEMINI_IMAGES']
                             )
                         repaired_mcqs.append(mcq)
                     page_dataset["mcqs"] = repaired_mcqs
@@ -1876,6 +2576,7 @@ def reconstruct_layout(ocr_results):
 
 
 def process_file_with_ocr(file_path, language, output_format, engine_name='easyocr', job_id=None, page_range=None):
+    config = get_config()
     def update_progress(percentage, status):
         if job_id:
             job_progress[job_id] = {"status": status, "percentage": percentage}
@@ -1899,7 +2600,7 @@ def process_file_with_ocr(file_path, language, output_format, engine_name='easyo
         openai_caps = get_openai_compat_capabilities()
 
     extracted_text = []
-    dpi = 200 if engine_name == 'openai_compatible' else 300
+    dpi = config['OCR_DPI']
 
     # Handle page range
     total_pdf_pages = 0
@@ -1957,7 +2658,7 @@ def process_file_with_ocr(file_path, language, output_format, engine_name='easyo
                     except Exception as vision_exc:
                         if should_fallback_openai_vision(vision_exc):
                             fallback_text = extract_text_with_local_ocr_fallback(img, language)
-                            if OPENAI_COMPAT_ENABLE_POSTPROCESS:
+                            if config['OPENAI_COMPAT_ENABLE_POSTPROCESS']:
                                 try:
                                     text = cleanup_ocr_text_with_openai_compatible(fallback_text, text_model)
                                 except Exception:
@@ -1968,7 +2669,7 @@ def process_file_with_ocr(file_path, language, output_format, engine_name='easyo
                             raise
                 else:
                     fallback_text = extract_text_with_local_ocr_fallback(img, language)
-                    if OPENAI_COMPAT_ENABLE_POSTPROCESS:
+                    if config['OPENAI_COMPAT_ENABLE_POSTPROCESS']:
                         try:
                             text = cleanup_ocr_text_with_openai_compatible(fallback_text, text_model)
                         except Exception:
@@ -2085,10 +2786,36 @@ def create_initial_admin():
     except Error as e:
         return str(e)
 
+@app.route('/pipelines')
+def get_active_pipelines():
+    try:
+        conn = mysql.connector.connect(**app.config['DB_CONFIG'])
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute('SELECT id, name FROM custom_pipelines WHERE is_active = TRUE')
+        pipelines = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return jsonify({'success': True, 'pipelines': pipelines})
+    except Error as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
+
+@app.route('/engines')
+def get_engines():
+    try:
+        conn = mysql.connector.connect(**app.config['DB_CONFIG'])
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute('SELECT * FROM processing_engines WHERE is_active = TRUE ORDER BY sort_order ASC')
+        engines = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return jsonify({'success': True, 'engines': engines})
+    except Error as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/upload', methods=['POST'])
 def upload():
@@ -2099,6 +2826,15 @@ def upload():
 
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
+
+    # Dynamic size check
+    max_mb = int(get_db_setting('MAX_UPLOAD_SIZE_MB', '1024'))
+    file.seek(0, os.SEEK_END)
+    file_length = file.tell()
+    file.seek(0)
+
+    if file_length > max_mb * 1024 * 1024:
+        return jsonify({'error': f'File size exceeds the {max_mb}MB limit set by admin.'}), 400
 
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
@@ -2123,6 +2859,7 @@ def process():
         return jsonify({'error': 'No job ID found'}), 400
 
     engine = request.form.get('engine', 'easyocr')
+    pipeline_id = request.form.get('pipeline_id')
     language = request.form.get('language', 'english')
     output_format = request.form.get('format', 'txt')
     page_range = request.form.get('page_range', 'all')
@@ -2139,10 +2876,14 @@ def process():
         try:
             job_progress[job_id] = {"status": "Starting...", "percentage": 0}
 
-            if engine == 'aistudio':
+            if pipeline_id:
+                result = run_custom_pipeline(file_path, pipeline_id, output_format, job_id, page_range, language)
+            elif engine == 'aistudio':
                 result = process_with_aistudio(file_path, output_format, job_id, page_range)
             elif engine == 'gemini':
                 result = process_with_gemini(file_path, output_format, job_id, page_range)
+            elif engine == 'anthropic':
+                result = process_with_anthropic(file_path, output_format, job_id, page_range)
             else:
                 result = process_file_with_ocr(file_path, language, output_format, engine, job_id, page_range)
 
@@ -2376,6 +3117,60 @@ def admin_settings():
     outputs_size = format_size(get_dir_size(app.config['OUTPUT_FOLDER']))
     return render_template('admin/settings.html', uploads_size=uploads_size, outputs_size=outputs_size)
 
+@app.route('/admin/add_engine', methods=['POST'])
+@login_required
+def add_engine():
+    name = request.form.get('name')
+    display_name = request.form.get('display_name')
+    description = request.form.get('description')
+    sort_order = request.form.get('sort_order', 0)
+
+    if not name or not display_name:
+        return jsonify({'success': False, 'error': 'Name and Display Name are required'}), 400
+
+    try:
+        conn = mysql.connector.connect(**app.config['DB_CONFIG'])
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO processing_engines (name, display_name, description, sort_order)
+            VALUES (%s, %s, %s, %s)
+        ''', (name, display_name, description, sort_order))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return jsonify({'success': True, 'message': 'Engine added successfully'})
+    except Error as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/admin/update_setting', methods=['POST'])
+@login_required
+def update_setting():
+    key = request.form.get('key')
+    value = request.form.get('value')
+
+    if not key:
+        return jsonify({'success': False, 'error': 'Key is required'}), 400
+
+    try:
+        conn = mysql.connector.connect(**app.config['DB_CONFIG'])
+        cursor = conn.cursor()
+        cursor.execute('UPDATE settings SET `value` = %s WHERE `key` = %s', (value, key))
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        # Clear global caches if relevant settings changed
+        global OpenAICompatClient, OpenAICompatCapabilities, OcrReaders
+        if key.startswith('OPENAI_COMPAT_'):
+            OpenAICompatClient = None
+            OpenAICompatCapabilities = None
+        elif key == 'EASYOCR_GPU':
+            OcrReaders = {}
+
+        return jsonify({'success': True, 'message': f'Setting {key} updated successfully'})
+    except Error as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/admin/clear_folder/<folder_type>', methods=['POST'])
 @login_required
 def clear_folder(folder_type):
@@ -2432,7 +3227,7 @@ def clear_all_data():
 @app.route('/admin/clear_specific_data/<table_name>', methods=['POST'])
 @login_required
 def clear_specific_data(table_name):
-    allowed_tables = {'exams', 'years', 'questions', 'options', 'mcqs', 'exam_questions'}
+    allowed_tables = {'exams', 'years', 'questions', 'options', 'mcqs', 'exam_questions', 'ai_providers', 'custom_pipelines'}
     if table_name not in allowed_tables:
         return jsonify({'error': 'Invalid table'}), 400
 
@@ -2457,7 +3252,7 @@ def clear_specific_data(table_name):
 @app.route('/admin/delete/<table_name>/<int:id>', methods=['POST'])
 @login_required
 def admin_delete_record(table_name, id):
-    allowed_tables = {'exams', 'years', 'questions', 'options', 'mcqs', 'exam_questions'}
+    allowed_tables = {'exams', 'years', 'questions', 'options', 'mcqs', 'exam_questions', 'ai_providers', 'custom_pipelines'}
     if table_name not in allowed_tables:
         return jsonify({'error': 'Invalid table'}), 400
 
@@ -2482,7 +3277,7 @@ def admin_delete_record(table_name, id):
 @app.route('/admin/bulk_delete/<table_name>', methods=['POST'])
 @login_required
 def admin_bulk_delete(table_name):
-    allowed_tables = {'exams', 'years', 'questions', 'options', 'mcqs', 'exam_questions'}
+    allowed_tables = {'exams', 'years', 'questions', 'options', 'mcqs', 'exam_questions', 'ai_providers', 'custom_pipelines'}
     if table_name not in allowed_tables:
         return jsonify({'error': 'Invalid table'}), 400
 
@@ -2510,7 +3305,7 @@ def admin_bulk_delete(table_name):
 @app.route('/admin/edit/<table_name>/<int:id>', methods=['POST'])
 @login_required
 def admin_edit_record(table_name, id):
-    allowed_tables = {'exams', 'years', 'questions', 'options', 'mcqs', 'exam_questions'}
+    allowed_tables = {'exams', 'years', 'questions', 'options', 'mcqs', 'exam_questions', 'ai_providers', 'custom_pipelines'}
     if table_name not in allowed_tables:
         return jsonify({'error': 'Invalid table'}), 400
 
@@ -2527,13 +3322,13 @@ def admin_edit_record(table_name, id):
         values = []
         for key, value in data.items():
             if key != 'id':
-                fields.append(f"{key} = %s")
+                fields.append(f"`{key}` = %s")
                 values.append(value)
 
         if not fields:
             return jsonify({'error': 'No fields to update'}), 400
 
-        query = f"UPDATE {table_name} SET {', '.join(fields)} WHERE id = %s"
+        query = f"UPDATE `{table_name}` SET {', '.join(fields)} WHERE `id` = %s"
         values.append(id)
 
         cursor.execute(query, tuple(values))
@@ -2584,19 +3379,19 @@ def admin_exam_questions():
     try:
         conn = mysql.connector.connect(**app.config['DB_CONFIG'])
         cursor = conn.cursor(dictionary=True)
-        # Proper joined view of exam questions
+        
+        # 1. Fetch all mappings with basic MCQ info
         cursor.execute('''
-            SELECT
+            SELECT 
                 eq.id as mapping_id,
                 e.name as exam_name,
                 y.year as exam_year,
-                q.text as question_text,
                 m.id as mcq_id,
+                m.subject,
                 m.answer_index,
                 m.explanation,
-                m.language,
-                m.subject,
-                m.option_ids
+                m.option_ids,
+                q.text as question_text
             FROM exam_questions eq
             JOIN exams e ON eq.exam_id = e.id
             JOIN years y ON eq.year_id = y.id
@@ -2604,46 +3399,146 @@ def admin_exam_questions():
             JOIN questions q ON m.question_id = q.id
             ORDER BY eq.id DESC
         ''')
-        data = cursor.fetchall()
+        mappings = cursor.fetchall()
 
-        # For each item, fetch options detail
-        for item in data:
+        # 2. For each mapping, fetch option details
+        for item in mappings:
+            option_ids = []
             if item['option_ids']:
                 try:
-                    opt_ids = json.loads(item['option_ids'])
+                    option_ids = json.loads(item['option_ids'])
                 except:
-                    opt_ids = []
+                    pass
+            
+            item['options_detail'] = []
+            if option_ids:
+                format_strings = ','.join(['%s'] * len(option_ids))
+                cursor.execute(f"SELECT * FROM options WHERE id IN ({format_strings})", tuple(option_ids))
+                options = cursor.fetchall()
+                
+                # Sort options to match the order in option_ids
+                opt_map = {opt['id']: opt for opt in options}
+                item['options_detail'] = [opt_map[oid] for oid in option_ids if oid in opt_map]
 
-                if opt_ids:
-                    # Filter out any non-integer IDs
-                    opt_ids = [int(oid) for oid in opt_ids if str(oid).isdigit()]
-                    if opt_ids:
-                        placeholders = ', '.join(['%s'] * len(opt_ids))
-                        cursor.execute(f'SELECT * FROM options WHERE id IN ({placeholders})', tuple(opt_ids))
-                        options = cursor.fetchall()
-                        # Reorder options based on opt_ids
-                        opt_map = {o['id']: o for o in options}
-                        item['options_detail'] = [opt_map[oid] for oid in opt_ids if oid in opt_map]
-                    else:
-                        item['options_detail'] = []
-                else:
-                    item['options_detail'] = []
-            else:
-                item['options_detail'] = []
-
-        # Fetch all exams and years for edit dropdowns
-        cursor.execute('SELECT * FROM exams ORDER BY name ASC')
+        # 3. Fetch exams and years for the edit modal
+        cursor.execute("SELECT * FROM exams ORDER BY name ASC")
         exams = cursor.fetchall()
-        cursor.execute('SELECT * FROM years ORDER BY year DESC')
+        cursor.execute("SELECT * FROM years ORDER BY year DESC")
         years = cursor.fetchall()
 
-        return render_template('admin/exam_questions.html', data=data, exams=exams, years=years)
+        cursor.close()
+        conn.close()
+        
+        return render_template('admin/exam_questions.html', 
+                             data=mappings, 
+                             exams=exams, 
+                             years=years)
     except Error as e:
         return str(e), 500
     finally:
-        if conn.is_connected():
-            cursor.close()
+        if 'conn' in locals() and conn.is_connected():
             conn.close()
+
+
+@app.route('/admin/pipelines')
+@login_required
+def admin_pipelines():
+    try:
+        conn = mysql.connector.connect(**app.config['DB_CONFIG'])
+        cursor = conn.cursor(dictionary=True)
+
+        # Fetch settings (Moved from settings route)
+        cursor.execute('SELECT * FROM settings ORDER BY category, `key`')
+        db_settings = cursor.fetchall()
+
+        # Fetch engines (Moved from settings route)
+        cursor.execute('SELECT * FROM processing_engines ORDER BY sort_order ASC')
+        db_engines = cursor.fetchall()
+
+        # Fetch providers
+        cursor.execute('SELECT * FROM ai_providers ORDER BY name ASC')
+        providers = cursor.fetchall()
+
+        # Fetch pipelines
+        cursor.execute('''
+            SELECT cp.*,
+                   op.name as ocr_provider_name,
+                   sp.name as structure_provider_name
+            FROM custom_pipelines cp
+            LEFT JOIN ai_providers op ON cp.ocr_provider_id = op.id
+            LEFT JOIN ai_providers sp ON cp.structure_provider_id = sp.id
+            ORDER BY cp.name ASC
+        ''')
+        pipelines = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+        return render_template('admin/pipelines.html',
+                             providers=providers,
+                             pipelines=pipelines,
+                             settings=db_settings,
+                             engines=db_engines)
+    except Error as e:
+        return str(e), 500
+
+@app.route('/admin/add_provider', methods=['POST'])
+@login_required
+def add_provider():
+    name = request.form.get('name')
+    p_type = request.form.get('type')
+    base_url = request.form.get('base_url')
+    api_key = request.form.get('api_key')
+
+    try:
+        conn = mysql.connector.connect(**app.config['DB_CONFIG'])
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO ai_providers (name, type, base_url, api_key)
+            VALUES (%s, %s, %s, %s)
+        ''', (name, p_type, base_url, api_key))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return jsonify({'success': True})
+    except Error as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/admin/add_custom_pipeline', methods=['POST'])
+@login_required
+def add_custom_pipeline():
+    name = request.form.get('name')
+    ocr_provider_id = request.form.get('ocr_provider_id')
+    ocr_model = request.form.get('ocr_model')
+    structure_provider_id = request.form.get('structure_provider_id')
+    structure_model = request.form.get('structure_model')
+
+    try:
+        conn = mysql.connector.connect(**app.config['DB_CONFIG'])
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO custom_pipelines (name, ocr_provider_id, ocr_model, structure_provider_id, structure_model)
+            VALUES (%s, %s, %s, %s, %s)
+        ''', (name, ocr_provider_id, ocr_model, structure_provider_id, structure_model))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return jsonify({'success': True})
+    except Error as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/admin/toggle_pipeline/<int:id>', methods=['POST'])
+@login_required
+def toggle_pipeline(id):
+    try:
+        conn = mysql.connector.connect(**app.config['DB_CONFIG'])
+        cursor = conn.cursor()
+        cursor.execute('UPDATE custom_pipelines SET is_active = NOT is_active WHERE id = %s', (id,))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return jsonify({'success': True})
+    except Error as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/admin/profile')
 @login_required

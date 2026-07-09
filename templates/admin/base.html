@@ -121,6 +121,9 @@
             <a class="nav-link {% if request.path == '/admin/options' %}active{% endif %}" href="/admin/options">
                 <i class="fas fa-check-square"></i> Options
             </a>
+            <a class="nav-link {% if request.path == '/admin/pipelines' %}active{% endif %}" href="/admin/pipelines">
+                <i class="fas fa-project-diagram"></i> Pipelines
+            </a>
             <a class="nav-link {% if request.path == '/admin/settings' %}active{% endif %}" href="/admin/settings">
                 <i class="fas fa-cog"></i> Settings
             </a>
@@ -197,14 +200,21 @@
 
             try {
                 const response = await fetch(`/admin/delete/${tableName}/${id}`, { method: 'POST' });
+                if (response.status === 401 || response.redirected) {
+                    alert('Session expired. Please log in again.');
+                    window.location.href = '/login';
+                    return;
+                }
+
                 const result = await response.json();
                 if (result.success) {
                     location.reload();
                 } else {
-                    alert('Error: ' + result.error);
+                    alert('Error: ' + (result.error || 'Failed to delete'));
                 }
             } catch (error) {
-                alert('Request failed: ' + error);
+                console.error('Delete failed:', error);
+                alert('Request failed. Check console for details.');
             }
         }
 
@@ -225,14 +235,22 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ ids: ids })
                 });
+
+                if (response.status === 401 || response.redirected) {
+                    alert('Session expired. Please log in again.');
+                    window.location.href = '/login';
+                    return;
+                }
+
                 const result = await response.json();
                 if (result.success) {
                     location.reload();
                 } else {
-                    alert('Error: ' + result.error);
+                    alert('Error: ' + (result.error || 'Failed to delete records'));
                 }
             } catch (error) {
-                alert('Request failed: ' + error);
+                console.error('Bulk delete failed:', error);
+                alert('Request failed. Check console for details.');
             }
         }
     </script>

@@ -415,15 +415,33 @@
 
                             <div class="row mt-4">
                                 <div class="col-md-12 mb-3">
-                                    <div class="form-group mb-0">
-                                        <label class="form-label">Extraction Engine</label>
-                                        <select class="form-select" id="engineSelect">
-                                            <option value="easyocr">EasyOCR (Local - Basic OCR)</option>
-                                            <option value="tesseract">Tesseract (Local - Fast OCR)</option>
-                                            <option value="openai_compatible">OpenAI Compatible (Local API - Vision OCR)</option>
-                                            <option value="gemini">Gemini (Local Proxy - OCR + Cleanup + Structure)</option>
-                                            <option value="aistudio">AI Studio Layout API (Cloud - Layout & Images)</option>
-                                        </select>
+                                    <ul class="nav nav-pills mb-3" id="processTabs" role="tablist">
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link active btn-sm" id="standard-tab" data-bs-toggle="pill" data-bs-target="#standard-engine" type="button" role="tab">Standard Engines</button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link btn-sm" id="custom-tab" data-bs-toggle="pill" data-bs-target="#custom-pipeline" type="button" role="tab">Custom Pipelines</button>
+                                        </li>
+                                    </ul>
+
+                                    <div class="tab-content">
+                                        <div class="tab-pane fade show active" id="standard-engine" role="tabpanel">
+                                            <div class="form-group mb-0">
+                                                <label class="form-label">Extraction Engine</label>
+                                                <select class="form-select" id="engineSelect">
+                                                    <!-- Engines will be loaded dynamically -->
+                                                    <option value="">Loading engines...</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="tab-pane fade" id="custom-pipeline" role="tabpanel">
+                                            <div class="form-group mb-0">
+                                                <label class="form-label">Custom Pipeline</label>
+                                                <select class="form-select" id="pipelineSelect">
+                                                    <option value="">Loading pipelines...</option>
+                                                </select>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="col-md-6" id="languageCol">
@@ -554,7 +572,59 @@
 
         let selectedFile = null;
 
+        // Load engines dynamically
+        async function loadEngines() {
+            try {
+                const response = await fetch('/engines');
+                if (!response.ok) throw new Error('Failed to load engines');
+                const result = await response.json();
+                if (result.success) {
+                    const engineSelect = document.getElementById('engineSelect');
+                    const currentValue = engineSelect.value;
+                    engineSelect.innerHTML = '';
+                    result.engines.forEach(engine => {
+                        const option = document.createElement('option');
+                        option.value = engine.name;
+                        option.textContent = engine.display_name;
+                        if (engine.name === currentValue) option.selected = true;
+                        engineSelect.appendChild(option);
+                    });
+                    applyEngineUI(engineSelect.value);
+                }
+            } catch (error) {
+                console.error('Failed to load engines:', error);
+            }
+        }
+
+        // Load pipelines dynamically
+        async function loadPipelines() {
+            try {
+                const response = await fetch('/pipelines');
+                if (!response.ok) throw new Error('Failed to load pipelines');
+                const result = await response.json();
+                const pipelineSelect = document.getElementById('pipelineSelect');
+                if (result.success && result.pipelines.length > 0) {
+                    pipelineSelect.innerHTML = '<option value="">-- Select a Pipeline --</option>';
+                    result.pipelines.forEach(pipeline => {
+                        const option = document.createElement('option');
+                        option.value = pipeline.id;
+                        option.textContent = pipeline.name;
+                        pipelineSelect.appendChild(option);
+                    });
+                } else {
+                    pipelineSelect.innerHTML = '<option value="">No active pipelines found</option>';
+                }
+            } catch (error) {
+                console.error('Failed to load pipelines:', error);
+            }
+        }
+
         function applyEngineUI(engineValue) {
+            if (!engineValue) {
+                engineAlert.style.display = 'none';
+                return;
+            }
+            engineAlert.style.display = 'block';
             if (engineValue === 'aistudio') {
                 languageCol.style.display = 'none';
                 optZip.style.display = 'block';
@@ -698,30 +768,54 @@
                     body: formData
                 });
 
-                const uploadResult = await uploadResponse.json();
-
                 if (!uploadResponse.ok) {
-                    throw new Error(uploadResult.error || 'Upload failed');
+                    const errorText = await uploadResponse.text();
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        throw new Error(errorJson.error || 'Upload failed');
+                    } catch (e) {
+                        throw new Error('Server error during upload: ' + uploadResponse.status);
+                    }
                 }
 
+                const uploadResult = await uploadResponse.json();
+
                 currentJobId = uploadResult.job_id;
-                statusText.textContent = 'Processing with OCR...';
+                statusText.textContent = 'Processing...';
+
+                const activeTab = document.querySelector('#processTabs button.active').id;
+                const processData = {
+                    language: languageSelect.value,
+                    format: formatSelect.value,
+                    page_range: pageRangeInput.value || 'all'
+                };
+
+                if (activeTab === 'custom-tab') {
+                    const pipelineId = document.getElementById('pipelineSelect').value;
+                    if (!pipelineId) {
+                        throw new Error('Please select a custom pipeline');
+                    }
+                    processData.pipeline_id = pipelineId;
+                } else {
+                    processData.engine = engineSelect.value;
+                }
 
                 const processResponse = await fetch('/process', {
                     method: 'POST',
-                    body: new URLSearchParams({
-                        engine: engineSelect.value,
-                        language: languageSelect.value,
-                        format: formatSelect.value,
-                        page_range: pageRangeInput.value || 'all'
-                    })
+                    body: new URLSearchParams(processData)
                 });
 
-                const processResult = await processResponse.json();
-
                 if (!processResponse.ok) {
-                    throw new Error(processResult.error || 'Processing failed');
+                    const errorText = await processResponse.text();
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        throw new Error(errorJson.error || 'Processing failed');
+                    } catch (e) {
+                        throw new Error('Server error during processing initialization: ' + processResponse.status);
+                    }
                 }
+
+                const processResult = await processResponse.json();
 
                 const jobId = uploadResult.job_id;
 
@@ -729,6 +823,10 @@
                 const pollProgress = setInterval(async () => {
                     try {
                         const progressResponse = await fetch(`/progress/${jobId}`);
+                        if (!progressResponse.ok) {
+                             // Don't stop polling on transient network errors, but handle critical ones
+                             if (progressResponse.status >= 500) return;
+                        }
                         const progressResult = await progressResponse.json();
 
                         if (progressResult.status === 'Error') {
@@ -837,6 +935,16 @@
                     body: JSON.stringify(jsonData)
                 });
 
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        throw new Error(errorJson.error || 'Database upload failed');
+                    } catch (e) {
+                        throw new Error('Server error during DB upload: ' + response.status);
+                    }
+                }
+
                 const result = await response.json();
                 if (response.ok) {
                     alert(result.message || 'Data successfully uploaded to database!');
@@ -856,6 +964,9 @@
             applyEngineUI(e.target.value);
         });
 
+        // Initialize
+        loadEngines();
+        loadPipelines();
         applyEngineUI(engineSelect.value);
     </script>
 </body>

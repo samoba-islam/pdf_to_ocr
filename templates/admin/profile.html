@@ -93,6 +93,12 @@ document.getElementById('changePasswordForm').addEventListener('submit', async (
             body: formData
         });
 
+        if (response.status === 401 || response.redirected) {
+            alert('Session expired. Please log in again.');
+            window.location.href = '/login';
+            return;
+        }
+
         const result = await response.json();
 
         if (result.success) {

@@ -1,101 +1,101 @@
 {% extends "admin/base.html" %}
 
-{% block title %}Settings{% endblock %}
+{% block title %}System Maintenance{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-md-8 mx-auto">
-        <div class="card p-4">
-            <h4 class="mb-4"><i class="fas fa-tools me-2"></i>System Maintenance</h4>
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 text-primary"><i class="fas fa-tools me-2"></i>Maintenance Tools</h5>
+            </div>
+            <div class="card-body p-4">
+                <ul class="nav nav-pills mb-4" id="settingsTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active btn-sm me-2" id="cleanup-tab" data-bs-toggle="tab" data-bs-target="#cleanup" type="button" role="tab">Cleanup Folders</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link btn-sm" id="data-tab" data-bs-toggle="tab" data-bs-target="#clear-data" type="button" role="tab">Database Reset</button>
+                    </li>
+                </ul>
 
-            <ul class="nav nav-tabs mb-4" id="settingsTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="cleanup-tab" data-bs-toggle="tab" data-bs-target="#cleanup" type="button" role="tab">Cleanup Folders</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="data-tab" data-bs-toggle="tab" data-bs-target="#clear-data" type="button" role="tab">Clear All Data</button>
-                </li>
-            </ul>
+                <div class="tab-content" id="settingsTabsContent">
+                    <div class="tab-pane fade show active" id="cleanup" role="tabpanel">
+                        <div class="alert alert-info py-2 small">
+                            <i class="fas fa-info-circle me-2"></i> Use these options to free up disk space by removing uploaded files and generated outputs.
+                        </div>
 
-            <div class="tab-content" id="settingsTabsContent">
-                <div class="tab-pane fade show active" id="cleanup" role="tabpanel">
-                    <!-- ... existing cleanup content ... -->
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i> Use these options to free up disk space by removing uploaded files and generated outputs.
+                        <div class="d-flex flex-column gap-3">
+                            <div class="p-3 border rounded d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">Clear Uploads Folder <span class="badge bg-secondary ms-2">{{ uploads_size }}</span></h6>
+                                    <p class="text-muted mb-0 small">Remove all files inside the <code>uploads/</code> directory.</p>
+                                </div>
+                                <button class="btn btn-outline-danger btn-sm" onclick="clearFolder('uploads')">
+                                    <i class="fas fa-trash-alt me-2"></i> Clear Uploads
+                                </button>
+                            </div>
+
+                            <div class="p-3 border rounded d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">Clear Outputs Folder <span class="badge bg-secondary ms-2">{{ outputs_size }}</span></h6>
+                                    <p class="text-muted mb-0 small">Remove all generated files inside the <code>outputs/</code> directory.</p>
+                                </div>
+                                <button class="btn btn-outline-danger btn-sm" onclick="clearFolder('outputs')">
+                                    <i class="fas fa-trash-alt me-2"></i> Clear Outputs
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="d-flex flex-column gap-3">
-                        <div class="p-3 border rounded d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-1">Clear Uploads Folder <span class="badge bg-secondary ms-2">{{ uploads_size }}</span></h6>
-                                <p class="text-muted mb-0 small">Remove all files inside the <code>uploads/</code> directory.</p>
+                    <div class="tab-pane fade" id="clear-data" role="tabpanel">
+                        <div class="alert alert-danger py-2 small">
+                            <i class="fas fa-exclamation-triangle me-2"></i> <strong>CRITICAL ACTION:</strong> This will permanently delete records from the database. This action <strong>CANNOT</strong> be undone.
+                        </div>
+
+                        <div class="mb-4">
+                            <h5 class="h6 fw-bold mb-3 text-danger">Clear Specific Lists</h5>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <button class="btn btn-outline-danger btn-sm w-100 text-start" onclick="clearSpecificData('exams')">
+                                        <i class="fas fa-graduation-cap me-2"></i> Clear Exams
+                                    </button>
+                                </div>
+                                <div class="col-md-6">
+                                    <button class="btn btn-outline-danger btn-sm w-100 text-start" onclick="clearSpecificData('years')">
+                                        <i class="fas fa-calendar-alt me-2"></i> Clear Years
+                                    </button>
+                                </div>
+                                <div class="col-md-6">
+                                    <button class="btn btn-outline-danger btn-sm w-100 text-start" onclick="clearSpecificData('questions')">
+                                        <i class="fas fa-question-circle me-2"></i> Clear Questions
+                                    </button>
+                                </div>
+                                <div class="col-md-6">
+                                    <button class="btn btn-outline-danger btn-sm w-100 text-start" onclick="clearSpecificData('options')">
+                                        <i class="fas fa-check-square me-2"></i> Clear Options
+                                    </button>
+                                </div>
+                                <div class="col-md-6">
+                                    <button class="btn btn-outline-danger btn-sm w-100 text-start" onclick="clearSpecificData('mcqs')">
+                                        <i class="fas fa-list-ol me-2"></i> Clear MCQs
+                                    </button>
+                                </div>
+                                <div class="col-md-6">
+                                    <button class="btn btn-outline-danger btn-sm w-100 text-start" onclick="clearSpecificData('exam_questions')">
+                                        <i class="fas fa-file-invoice me-2"></i> Clear Mappings
+                                    </button>
+                                </div>
                             </div>
-                            <button class="btn btn-outline-danger" onclick="clearFolder('uploads')">
-                                <i class="fas fa-trash-alt me-2"></i> Clear Uploads
+                        </div>
+
+                        <div class="p-4 border border-danger rounded text-center bg-danger bg-opacity-10">
+                            <h5 class="text-danger h6 fw-bold mb-2">Wipe Entire Database</h5>
+                            <p class="text-muted mb-3 small">Are you absolutely sure? This will clear all extracted data from every list.</p>
+                            <button class="btn btn-danger btn-sm" onclick="clearAllData()">
+                                <i class="fas fa-bomb me-2"></i> Clear All Database Data
                             </button>
                         </div>
-
-                        <div class="p-3 border rounded d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-1">Clear Outputs Folder <span class="badge bg-secondary ms-2">{{ outputs_size }}</span></h6>
-                                <p class="text-muted mb-0 small">Remove all generated files inside the <code>outputs/</code> directory.</p>
-                            </div>
-                            <button class="btn btn-outline-danger" onclick="clearFolder('outputs')">
-                                <i class="fas fa-trash-alt me-2"></i> Clear Outputs
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="tab-pane fade" id="clear-data" role="tabpanel">
-                    <div class="alert alert-danger">
-                        <i class="fas fa-exclamation-triangle me-2"></i> <strong>CRITICAL ACTION:</strong> This will permanently delete records from the database. This action <strong>CANNOT</strong> be undone.
-                    </div>
-
-                    <div class="mb-4">
-                        <h5 class="mb-3">Clear Specific Lists</h5>
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <button class="btn btn-outline-danger w-100" onclick="clearSpecificData('exams')">
-                                    <i class="fas fa-graduation-cap me-2"></i> Clear Exams
-                                </button>
-                            </div>
-                            <div class="col-md-4">
-                                <button class="btn btn-outline-danger w-100" onclick="clearSpecificData('years')">
-                                    <i class="fas fa-calendar-alt me-2"></i> Clear Years
-                                </button>
-                            </div>
-                            <div class="col-md-4">
-                                <button class="btn btn-outline-danger w-100" onclick="clearSpecificData('questions')">
-                                    <i class="fas fa-question-circle me-2"></i> Clear Questions
-                                </button>
-                            </div>
-                            <div class="col-md-4">
-                                <button class="btn btn-outline-danger w-100" onclick="clearSpecificData('options')">
-                                    <i class="fas fa-check-square me-2"></i> Clear Options
-                                </button>
-                            </div>
-                            <div class="col-md-4">
-                                <button class="btn btn-outline-danger w-100" onclick="clearSpecificData('mcqs')">
-                                    <i class="fas fa-list-ol me-2"></i> Clear MCQs
-                                </button>
-                            </div>
-                            <div class="col-md-4">
-                                <button class="btn btn-outline-danger w-100" onclick="clearSpecificData('exam_questions')">
-                                    <i class="fas fa-file-invoice me-2"></i> Clear Mappings
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <hr class="my-4">
-
-                    <div class="p-4 border border-danger rounded text-center bg-danger bg-opacity-10">
-                        <h5 class="text-danger mb-3">Wipe Entire Database</h5>
-                        <p class="text-muted mb-4">Are you absolutely sure? This will clear all extracted data from every list.</p>
-                        <button class="btn btn-danger btn-lg" onclick="clearAllData()">
-                            <i class="fas fa-bomb me-2"></i> Clear All Database Data
-                        </button>
                     </div>
                 </div>
             </div>
@@ -115,6 +115,13 @@
             const response = await fetch(`/admin/clear_folder/${type}`, {
                 method: 'POST'
             });
+
+            if (response.status === 401 || response.redirected) {
+                alert('Session expired. Please log in again.');
+                window.location.href = '/login';
+                return;
+            }
+
             const result = await response.json();
 
             if (result.success) {
@@ -137,6 +144,13 @@
             const response = await fetch(`/admin/clear_specific_data/${tableName}`, {
                 method: 'POST'
             });
+
+            if (response.status === 401 || response.redirected) {
+                alert('Session expired. Please log in again.');
+                window.location.href = '/login';
+                return;
+            }
+
             const result = await response.json();
 
             if (result.success) {
@@ -163,6 +177,13 @@
             const response = await fetch('/admin/clear_all_data', {
                 method: 'POST'
             });
+
+            if (response.status === 401 || response.redirected) {
+                alert('Session expired. Please log in again.');
+                window.location.href = '/login';
+                return;
+            }
+
             const result = await response.json();
 
             if (result.success) {

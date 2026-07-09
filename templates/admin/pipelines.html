@@ -1,0 +1,770 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Pipeline & Engine Management{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <ul class="nav nav-tabs mb-4" id="pipelineTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="pipelines-tab" data-bs-toggle="tab" data-bs-target="#pipelines-pane" type="button" role="tab">Pipelines</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="providers-tab" data-bs-toggle="tab" data-bs-target="#providers-pane" type="button" role="tab">AI Providers</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="engine-config-tab" data-bs-toggle="tab" data-bs-target="#engine-config-pane" type="button" role="tab">Global Engine Config</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="standard-engines-tab" data-bs-toggle="tab" data-bs-target="#standard-engines-pane" type="button" role="tab">Standard Engines</button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="pipelineTabsContent">
+            <!-- Pipelines Tab -->
+            <div class="tab-pane fade show active" id="pipelines-pane" role="tabpanel">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                        <h5 class="mb-0 text-primary"><i class="fas fa-project-diagram me-2"></i>Custom Pipelines</h5>
+                        <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addPipelineModal">
+                            <i class="fas fa-plus me-1"></i> Create Pipeline
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Pipeline Name</th>
+                                        <th>OCR Step</th>
+                                        <th>Structuring Step</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for pipeline in pipelines %}
+                                    <tr>
+                                        <td class="fw-bold text-primary">{{ pipeline.name }}</td>
+                                        <td>
+                                            <div>{{ pipeline.ocr_provider_name }}</div>
+                                            <div class="text-muted small">Model: {{ pipeline.ocr_model or 'Default' }}</div>
+                                        </td>
+                                        <td>
+                                            <div>{{ pipeline.structure_provider_name }}</div>
+                                            <div class="text-muted small">Model: {{ pipeline.structure_model or 'Default' }}</div>
+                                        </td>
+                                        <td>
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" role="switch"
+                                                       onchange="togglePipeline({{ pipeline.id }})"
+                                                       {% if pipeline.is_active %}checked{% endif %}>
+                                            </div>
+                                        </td>
+                                        <td class="text-end">
+                                            <button class="btn btn-sm btn-outline-primary me-1 edit-pipeline-btn"
+                                                    data-pipeline='{{ pipeline|tojson }}'>
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" onclick="deleteRecord('custom_pipelines', {{ pipeline.id }})">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Providers Tab -->
+            <div class="tab-pane fade" id="providers-pane" role="tabpanel">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                        <h5 class="mb-0 text-primary"><i class="fas fa-server me-2"></i>AI Providers</h5>
+                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addProviderModal">
+                            <i class="fas fa-plus me-1"></i> Add Provider
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Type</th>
+                                        <th>Base URL</th>
+                                        <th>API Key</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for provider in providers %}
+                                    <tr>
+                                        <td class="fw-bold">{{ provider.name }}</td>
+                                        <td><span class="badge bg-secondary">{{ provider.type }}</span></td>
+                                        <td class="text-monospace small">{{ provider.base_url or '-' }}</td>
+                                        <td class="text-monospace small">
+                                            {% if provider.api_key %}
+                                            <span title="{{ provider.api_key }}">********</span>
+                                            {% else %}
+                                            -
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if provider.is_active %}
+                                            <span class="badge bg-success">Active</span>
+                                            {% else %}
+                                            <span class="badge bg-danger">Disabled</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end">
+                                            <button class="btn btn-sm btn-outline-primary me-1 edit-provider-btn"
+                                                    data-provider='{{ provider|tojson }}'>
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" onclick="deleteRecord('ai_providers', {{ provider.id }})">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Global Engine Config Tab (Moved from Settings) -->
+            <div class="tab-pane fade" id="engine-config-pane" role="tabpanel">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white py-3">
+                        <h5 class="mb-0 text-primary"><i class="fas fa-cog me-2"></i>Global Engine Configuration</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-warning py-2 small">
+                            <i class="fas fa-exclamation-triangle me-2"></i> These settings affect system-wide defaults and standard engines.
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Setting Key</th>
+                                        <th>Value</th>
+                                        <th>Category</th>
+                                        <th class="text-end">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for setting in settings %}
+                                    <tr>
+                                        <td>
+                                            <div class="fw-bold text-monospace small">{{ setting.key }}</div>
+                                            <div class="text-muted extra-small" style="font-size: 0.75rem;">{{ setting.description }}</div>
+                                        </td>
+                                        <td>
+                                            {% if setting.key in ['OPENAI_COMPAT_ENABLE_POSTPROCESS', 'EASYOCR_GPU'] %}
+                                            <select class="form-select form-select-sm engine-setting" data-key="{{ setting.key }}">
+                                                <option value="true" {% if setting.value == 'true' %}selected{% endif %}>True</option>
+                                                <option value="false" {% if setting.value == 'false' %}selected{% endif %}>False</option>
+                                            </select>
+                                            {% else %}
+                                            <input type="text" class="form-control form-control-sm engine-setting"
+                                                   data-key="{{ setting.key }}" value="{{ setting.value }}">
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-light text-dark border">{{ setting.category }}</span>
+                                        </td>
+                                        <td class="text-end">
+                                            <button class="btn btn-sm btn-primary save-setting-btn" data-key="{{ setting.key }}">
+                                                <i class="fas fa-save"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Standard Engines Tab (Moved from Settings) -->
+            <div class="tab-pane fade" id="standard-engines-pane" role="tabpanel">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                        <h5 class="mb-0 text-primary"><i class="fas fa-microchip me-2"></i>Manage Standard Engines</h5>
+                        <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addEngineModal">
+                            <i class="fas fa-plus me-1"></i> Add Engine
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info py-2 small">
+                            <i class="fas fa-info-circle me-2"></i> Toggle visibility and sort standard engines on the homepage.
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Engine Name</th>
+                                        <th>Display Name</th>
+                                        <th>Status</th>
+                                        <th>Sort Order</th>
+                                        <th class="text-end">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for engine in engines %}
+                                    <tr>
+                                        <td class="fw-bold text-monospace">{{ engine.name }}</td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm engine-display-name"
+                                                   data-id="{{ engine.id }}" value="{{ engine.display_name }}">
+                                        </td>
+                                        <td>
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input engine-status" type="checkbox"
+                                                       data-id="{{ engine.id }}" {% if engine.is_active %}checked{% endif %}>
+                                                <label class="form-check-label small">{{ 'Active' if engine.is_active else 'Disabled' }}</label>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control form-control-sm engine-sort-order"
+                                                   data-id="{{ engine.id }}" value="{{ engine.sort_order }}" style="width: 70px;">
+                                        </td>
+                                        <td class="text-end">
+                                            <button class="btn btn-sm btn-primary save-engine-btn" data-id="{{ engine.id }}">
+                                                <i class="fas fa-save"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Provider Modal -->
+<div class="modal fade" id="addProviderModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add AI Provider</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addProviderForm">
+                    <div class="mb-3">
+                        <label class="form-label">Provider Name</label>
+                        <input type="text" class="form-control" name="name" required placeholder="e.g. My Local Ollama">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Type</label>
+                        <select class="form-select" name="type" required>
+                            <option value="openai">OpenAI Compatible</option>
+                            <option value="gemini">Gemini</option>
+                            <option value="ollama">Ollama</option>
+                            <option value="aistudio">AI Studio / Paddle</option>
+                            <option value="local">Local (Tesseract/EasyOCR)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Base URL</label>
+                        <input type="url" class="form-control" name="base_url" placeholder="https://api.openai.com/v1">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">API Key</label>
+                        <input type="password" class="form-control" name="api_key">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="addProviderForm" class="btn btn-primary">Save Provider</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Pipeline Modal -->
+<div class="modal fade" id="addPipelineModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create Custom Pipeline</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addPipelineForm">
+                    <div class="mb-4">
+                        <label class="form-label">Pipeline Name</label>
+                        <input type="text" class="form-control" name="name" required placeholder="e.g. High Accuracy Pipeline">
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card bg-light border-0">
+                                <div class="card-body">
+                                    <h6 class="fw-bold mb-3"><i class="fas fa-search me-2"></i>Step 1: OCR Extraction</h6>
+                                    <div class="mb-3">
+                                        <label class="form-label">OCR Provider</label>
+                                        <select class="form-select" name="ocr_provider_id" required>
+                                            {% for provider in providers %}
+                                            <option value="{{ provider.id }}">{{ provider.name }} ({{ provider.type }})</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Model Name</label>
+                                        <input type="text" class="form-control" name="ocr_model" placeholder="e.g. gpt-4o or empty for default">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light border-0">
+                                <div class="card-body">
+                                    <h6 class="fw-bold mb-3"><i class="fas fa-code me-2"></i>Step 2: JSON Structuring</h6>
+                                    <div class="mb-3">
+                                        <label class="form-label">Structuring Provider</label>
+                                        <select class="form-select" name="structure_provider_id" required>
+                                            {% for provider in providers %}
+                                            {% if provider.type != 'aistudio' %} <!-- AI Studio currently doesn't support generic structuring -->
+                                            <option value="{{ provider.id }}">{{ provider.name }} ({{ provider.type }})</option>
+                                            {% endif %}
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Model Name</label>
+                                        <input type="text" class="form-control" name="structure_model" placeholder="e.g. gemini-1.5-pro">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="addPipelineForm" class="btn btn-success">Create Pipeline</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Edit Provider Modal -->
+<div class="modal fade" id="editProviderModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit AI Provider</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editProviderForm">
+                    <input type="hidden" name="id" id="edit_p_id">
+                    <div class="mb-3">
+                        <label class="form-label">Provider Name</label>
+                        <input type="text" class="form-control" name="name" id="edit_p_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Type</label>
+                        <select class="form-select" name="type" id="edit_p_type" required>
+                            <option value="openai">OpenAI Compatible</option>
+                            <option value="gemini">Gemini</option>
+                            <option value="ollama">Ollama</option>
+                            <option value="aistudio">AI Studio / Paddle</option>
+                            <option value="local">Local (Tesseract/EasyOCR)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Base URL</label>
+                        <input type="url" class="form-control" name="base_url" id="edit_p_url">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">API Key</label>
+                        <input type="text" class="form-control" name="api_key" id="edit_p_key" placeholder="Leave empty to keep current">
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="is_active" id="edit_p_active" value="1">
+                            <label class="form-check-label" for="edit_p_active">Provider Active</label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="editProviderForm" class="btn btn-primary">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Pipeline Modal -->
+<div class="modal fade" id="editPipelineModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Custom Pipeline</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editPipelineForm">
+                    <input type="hidden" name="id" id="edit_cp_id">
+                    <div class="mb-4">
+                        <label class="form-label">Pipeline Name</label>
+                        <input type="text" class="form-control" name="name" id="edit_cp_name" required>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card bg-light border-0">
+                                <div class="card-body">
+                                    <h6 class="fw-bold mb-3"><i class="fas fa-search me-2"></i>Step 1: OCR Extraction</h6>
+                                    <div class="mb-3">
+                                        <label class="form-label">OCR Provider</label>
+                                        <select class="form-select" name="ocr_provider_id" id="edit_cp_ocr_provider" required>
+                                            {% for provider in providers %}
+                                            <option value="{{ provider.id }}">{{ provider.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Model Name</label>
+                                        <input type="text" class="form-control" name="ocr_model" id="edit_cp_ocr_model">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light border-0">
+                                <div class="card-body">
+                                    <h6 class="fw-bold mb-3"><i class="fas fa-code me-2"></i>Step 2: JSON Structuring</h6>
+                                    <div class="mb-3">
+                                        <label class="form-label">Structuring Provider</label>
+                                        <select class="form-select" name="structure_provider_id" id="edit_cp_struct_provider" required>
+                                            {% for provider in providers %}
+                                            <option value="{{ provider.id }}">{{ provider.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Model Name</label>
+                                        <input type="text" class="form-control" name="structure_model" id="edit_cp_struct_model">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="editPipelineForm" class="btn btn-success">Update Pipeline</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const editProviderModal = new bootstrap.Modal(document.getElementById('editProviderModal'));
+    const editPipelineModal = new bootstrap.Modal(document.getElementById('editPipelineModal'));
+
+    // Event Delegation for all action buttons in the pipeline tabs
+    document.getElementById('pipelineTabsContent').addEventListener('click', async (e) => {
+        // Edit Provider
+        const editProviderBtn = e.target.closest('.edit-provider-btn');
+        if (editProviderBtn) {
+            const provider = JSON.parse(editProviderBtn.getAttribute('data-provider'));
+            document.getElementById('edit_p_id').value = provider.id;
+            document.getElementById('edit_p_name').value = provider.name;
+            document.getElementById('edit_p_type').value = provider.type;
+            document.getElementById('edit_p_url').value = provider.base_url || '';
+            document.getElementById('edit_p_key').value = '';
+            document.getElementById('edit_p_active').checked = !!provider.is_active;
+            editProviderModal.show();
+            return;
+        }
+
+        // Edit Pipeline
+        const editPipelineBtn = e.target.closest('.edit-pipeline-btn');
+        if (editPipelineBtn) {
+            const pipeline = JSON.parse(editPipelineBtn.getAttribute('data-pipeline'));
+            document.getElementById('edit_cp_id').value = pipeline.id;
+            document.getElementById('edit_cp_name').value = pipeline.name;
+            document.getElementById('edit_cp_ocr_provider').value = pipeline.ocr_provider_id;
+            document.getElementById('edit_cp_ocr_model').value = pipeline.ocr_model || '';
+            document.getElementById('edit_cp_struct_provider').value = pipeline.structure_provider_id;
+            document.getElementById('edit_cp_struct_model').value = pipeline.structure_model || '';
+            editPipelineModal.show();
+            return;
+        }
+
+        // Save Global Config Setting
+        const saveSettingBtn = e.target.closest('.save-setting-btn');
+        if (saveSettingBtn) {
+            const key = saveSettingBtn.getAttribute('data-key');
+            const input = document.querySelector(`.engine-setting[data-key="${key}"]`);
+            const value = input.value;
+            const originalIcon = saveSettingBtn.innerHTML;
+
+            saveSettingBtn.disabled = true;
+            saveSettingBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+            try {
+                const formData = new FormData();
+                formData.append('key', key);
+                formData.append('value', value);
+
+                const response = await fetch('/admin/update_setting', { method: 'POST', body: formData });
+                if (response.status === 401 || response.redirected) {
+                    alert('Session expired. Please log in again.');
+                    window.location.href = '/login';
+                    return;
+                }
+
+                const result = await response.json();
+                if (result.success) {
+                    saveSettingBtn.classList.replace('btn-primary', 'btn-success');
+                    saveSettingBtn.innerHTML = '<i class="fas fa-check"></i>';
+                    setTimeout(() => {
+                        saveSettingBtn.classList.replace('btn-success', 'btn-primary');
+                        saveSettingBtn.innerHTML = originalIcon;
+                        saveSettingBtn.disabled = false;
+                    }, 2000);
+                } else { throw new Error(result.error || 'Update failed'); }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+                saveSettingBtn.innerHTML = originalIcon;
+                saveSettingBtn.disabled = false;
+            }
+            return;
+        }
+
+        // Save Standard Engine Config
+        const saveEngineBtn = e.target.closest('.save-engine-btn');
+        if (saveEngineBtn) {
+            const id = saveEngineBtn.getAttribute('data-id');
+            const displayName = document.querySelector(`.engine-display-name[data-id="${id}"]`).value;
+            const isActive = document.querySelector(`.engine-status[data-id="${id}"]`).checked;
+            const sortOrder = document.querySelector(`.engine-sort-order[data-id="${id}"]`).value;
+            const originalIcon = saveEngineBtn.innerHTML;
+
+            saveEngineBtn.disabled = true;
+            saveEngineBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+            try {
+                const formData = new FormData();
+                formData.append('id', id);
+                formData.append('display_name', displayName);
+                formData.append('is_active', isActive);
+                formData.append('sort_order', sortOrder);
+
+                const response = await fetch('/admin/update_engine', { method: 'POST', body: formData });
+                if (response.status === 401 || response.redirected) {
+                    alert('Session expired. Please log in again.');
+                    window.location.href = '/login';
+                    return;
+                }
+
+                const result = await response.json();
+                if (result.success) {
+                    saveEngineBtn.classList.replace('btn-primary', 'btn-success');
+                    saveEngineBtn.innerHTML = '<i class="fas fa-check"></i>';
+                    setTimeout(() => {
+                        saveEngineBtn.classList.replace('btn-success', 'btn-primary');
+                        saveEngineBtn.innerHTML = originalIcon;
+                        saveEngineBtn.disabled = false;
+                    }, 2000);
+                } else { throw new Error(result.error || 'Update failed'); }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+                saveEngineBtn.innerHTML = originalIcon;
+                saveEngineBtn.disabled = false;
+            }
+            return;
+        }
+    });
+
+    document.getElementById('editProviderForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('edit_p_id').value;
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+        if (!data.api_key) delete data.api_key; // Don't overwrite if empty
+        data.is_active = document.getElementById('edit_p_active').checked ? 1 : 0;
+
+        try {
+            const response = await fetch(`/admin/edit/ai_providers/${id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (response.status === 401 || response.redirected) {
+                alert('Session expired. Please log in again.');
+                window.location.href = '/login';
+                return;
+            }
+            const result = await response.json();
+            if (result.success) location.reload();
+            else alert('Error: ' + result.error);
+        } catch (err) { alert('Failed: ' + err); }
+    });
+
+    document.getElementById('editPipelineForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('edit_cp_id').value;
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+
+        try {
+            const response = await fetch(`/admin/edit/custom_pipelines/${id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (response.status === 401 || response.redirected) {
+                alert('Session expired. Please log in again.');
+                window.location.href = '/login';
+                return;
+            }
+            const result = await response.json();
+            if (result.success) location.reload();
+            else alert('Error: ' + result.error);
+        } catch (err) { alert('Failed: ' + err); }
+    });
+
+    document.getElementById('addProviderForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        try {
+            const response = await fetch('/admin/add_provider', {
+                method: 'POST',
+                body: formData
+            });
+            if (response.status === 401 || response.redirected) {
+                alert('Session expired. Please log in again.');
+                window.location.href = '/login';
+                return;
+            }
+            const result = await response.json();
+            if (result.success) location.reload();
+            else alert('Error: ' + result.error);
+        } catch (err) { alert('Failed: ' + err); }
+    });
+
+    document.getElementById('addPipelineForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        try {
+            const response = await fetch('/admin/add_custom_pipeline', {
+                method: 'POST',
+                body: formData
+            });
+            if (response.status === 401 || response.redirected) {
+                alert('Session expired. Please log in again.');
+                window.location.href = '/login';
+                return;
+            }
+            const result = await response.json();
+            if (result.success) location.reload();
+            else alert('Error: ' + result.error);
+        } catch (err) { alert('Failed: ' + err); }
+    });
+
+    async function togglePipeline(id) {
+        try {
+            await fetch(`/admin/toggle_pipeline/${id}`, { method: 'POST' });
+        } catch (err) { alert('Toggle failed: ' + err); }
+    }
+
+    // --- Moved from Settings ---
+
+    // Add new standard engine logic
+    document.getElementById('addEngineForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+        const submitBtn = form.querySelector('button[type="submit"]');
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+
+        try {
+            const response = await fetch('/admin/add_engine', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.status === 401 || response.redirected) {
+                alert('Session expired. Please log in again.');
+                window.location.href = '/login';
+                return;
+            }
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert(result.message);
+                location.reload();
+            } else {
+                throw new Error(result.error || 'Failed to add engine');
+            }
+        } catch (error) {
+            alert(`Error: ${error.message}`);
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Add Engine';
+        }
+    });
+</script>
+
+<!-- Add Engine Modal (Moved from Settings) -->
+<div class="modal fade" id="addEngineModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Standard Engine</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addEngineForm">
+                    <div class="mb-3">
+                        <label class="form-label">Engine Name (Slug)</label>
+                        <input type="text" class="form-control" name="name" required placeholder="e.g. custom_vision_api">
+                        <div class="form-text text-danger small">Must match a handler in <code>app.py</code> if you want it to work immediately.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Display Name</label>
+                        <input type="text" class="form-control" name="display_name" required placeholder="e.g. My Custom Engine">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="description" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Sort Order</label>
+                        <input type="number" class="form-control" name="sort_order" value="10">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="addEngineForm" class="btn btn-success">Add Engine</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

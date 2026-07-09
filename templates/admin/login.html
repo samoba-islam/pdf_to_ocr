@@ -68,6 +68,10 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
             body: formData
         });
 
+        if (!response.ok && response.status !== 401) {
+            throw new Error('Server error: ' + response.status);
+        }
+
         const result = await response.json();
 
         if (result.success) {

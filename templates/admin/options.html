@@ -92,6 +92,13 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ text: text })
             });
+
+            if (response.status === 401 || response.redirected) {
+                alert('Session expired. Please log in again.');
+                window.location.href = '/login';
+                return;
+            }
+
             const result = await response.json();
             if (result.success) {
                 location.reload();
